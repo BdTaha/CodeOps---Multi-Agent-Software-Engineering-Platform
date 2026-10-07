@@ -1,0 +1,35 @@
+"""Durable local platform factory. Run workers as separate processes."""
+from pathlib import Path
+from contextlib import asynccontextmanager
+from fastapi.responses import RedirectResponse
+from starlette.middleware.trustedhost import TrustedHostMiddleware
+from starlette.staticfiles import StaticFiles
+from autonomous_engineering.core.config import Settings
+from autonomous_engineering.main import create_app
+from autonomous_engineering.api.tasks import task_router
+from autonomous_engineering.infrastructure.task_store import TaskStore
+
+
+def create_platform_app(settings=None, store=None):
+    config = settings or Settings()
+    app = create_app(config)
+    app.add_middleware(TrustedHostMiddleware,allowed_hosts=['localhost','127.0.0.1','testserver'])
+    app.state.task_store = store or TaskStore(config.database_url.get_secret_value())
+    original_lifespan = app.router.lifespan_context
+    @asynccontextmanager
+    async def lifespan(application):
+        try:
+            async with original_lifespan(application):
+                yield
+        finally:
+            if store is None:
+                application.state.task_store.close()
+    app.router.lifespan_context = lifespan
+    app.include_router(task_router(config,app.state.task_store))
+    frontend = Path(__file__).resolve().parents[2] / 'frontend' / 'dist'
+    if frontend.is_dir():
+        app.mount('/ui',StaticFiles(directory=frontend,html=True),name='frontend')
+    @app.get('/',include_in_schema=False)
+    def root():
+        return RedirectResponse('/ui/')
+    return app

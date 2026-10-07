@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Engineering Workflow Monitor</title>
+<style>
+:root{color-scheme:dark;--bg:#101216;--surface:#191c22;--line:#2b3038;--text:#edf0f4;--muted:#a7afbb;--accent:#b2e3cf;--blue:#a5c8ff;--amber:#edca8d;--red:#f1a7ad}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif}button,input,textarea{font:inherit}button{cursor:pointer}button:disabled{cursor:default;opacity:.5}button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--blue);outline-offset:3px}header{border-bottom:1px solid var(--line);padding:18px 36px;display:flex;justify-content:space-between;align-items:center;gap:16px}.brand{font-weight:600;letter-spacing:.02em}.brand span{color:var(--accent)}.phase{border:1px solid var(--line);padding:4px 12px;border-radius:20px;color:var(--muted);font-size:12px}main{max-width:1240px;margin:auto;padding:34px 36px 64px}.intro{display:flex;justify-content:space-between;align-items:center;gap:20px;margin-bottom:26px}h1{font-size:30px;letter-spacing:-.04em;margin:0 0 5px}h2{font-size:16px;margin:0 0 16px}h3{font-size:13px;color:var(--muted);font-weight:500;margin:20px 0 8px}p{margin:0;color:var(--muted)}.status{color:var(--muted);display:flex;align-items:center;gap:8px}.dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}.panel{border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:24px}.form-grid{display:grid;grid-template-columns:1fr 2fr auto;align-items:end;gap:16px}label{display:block;color:var(--muted);font-size:12px;margin-bottom:7px}input,textarea{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:7px;padding:11px 12px;resize:vertical}textarea{height:47px;min-height:47px}button.primary{border:0;border-radius:7px;background:var(--accent);color:#15221d;padding:12px 20px;font-weight:600;white-space:nowrap}.hint{font-size:12px;margin-top:12px}.workflow{margin:28px 0}.section-head{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:12px}.section-head h2{margin:0}.secondary{border:1px solid var(--line);border-radius:6px;background:transparent;color:var(--text);padding:6px 12px}.pipeline{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.node{text-align:left;border:1px solid var(--line);border-radius:9px;padding:16px;background:var(--surface);color:var(--text);min-height:105px;transition:border-color .15s}.node .ordinal{color:var(--muted);font-size:11px;margin-bottom:9px}.node strong{display:block;font-weight:500}.node .node-status{font-size:12px;color:var(--muted);margin-top:4px}.node[data-state=running]{border-color:var(--blue)}.node[data-state=running] .node-status{color:var(--blue)}.node[data-state=succeeded] .node-status{color:var(--accent)}.node[data-state=unavailable] .node-status{color:var(--amber)}.node[data-state=failed] .node-status{color:var(--red)}.node[aria-pressed=true]{background:#222831}.columns{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}.empty{color:var(--muted);padding:16px 0}.analysis-summary{color:var(--text)}.facts{display:flex;gap:28px;flex-wrap:wrap;margin:18px 0}.fact strong{font-size:22px;display:block;font-weight:500}.fact span{font-size:12px;color:var(--muted)}.chips{display:flex;gap:6px;flex-wrap:wrap}.chip{border:1px solid var(--line);padding:3px 9px;border-radius:5px;font-size:12px}.list{padding-left:20px;margin:6px 0;color:var(--muted)}.files{list-style:none;padding:0}.files li{font-family:ui-monospace,Consolas,monospace;font-size:12px;padding:5px 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}.trace{max-height:290px;overflow:auto}.trace-row{padding:11px 0;border-bottom:1px solid var(--line);display:grid;grid-template-columns:1fr auto;gap:12px}.trace-row:last-child{border:0}.trace-row strong{font-weight:500;display:block}.trace-row small{color:var(--muted)}.trace-row .time{font-family:ui-monospace,Consolas,monospace;color:var(--muted);font-size:12px}.result{margin-top:18px;border-left:3px solid var(--amber);padding-left:15px}.result h3{color:var(--amber);margin-top:0}.detail{margin-top:18px}.detail pre{white-space:pre-wrap;overflow-wrap:anywhere;color:var(--muted);font-size:12px;max-height:240px;overflow:auto;margin:0}.identity{font-family:ui-monospace,Consolas,monospace;font-size:11px;color:var(--muted);overflow-wrap:anywhere;margin-top:18px}.error{color:var(--red)}[hidden]{display:none!important}@media(max-width:900px){.form-grid{grid-template-columns:1fr}.columns{grid-template-columns:1fr}.pipeline{grid-template-columns:repeat(3,1fr)}main{padding:24px 18px}header{padding:16px 18px}.intro{align-items:flex-start}}@media(max-width:520px){.pipeline{grid-template-columns:1fr 1fr}.intro{display:block}.status{margin-top:14px}.node{padding:12px}h1{font-size:26px}.panel{padding:18px}}@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header><div class="brand"><span>●</span> Engineering Lab</div><div class="phase">Phase 6 · Developer</div></header>
+<main>
+<div class="intro"><div><h1>Follow every step.</h1><p>Run a real workflow. See its decisions, evidence, and stopping point.</p></div><div class="status" role="status" aria-live="polite"><span class="dot" id="status-dot"></span><span id="status">Ready to run</span></div></div>
+<form id="run-form" class="panel"><div class="form-grid"><div><label for="repository">Repository path</label><input id="repository" value="." required autocomplete="off"></div><div><label for="task">Engineering request</label><textarea id="task" required>Inspect task workflow state validation</textarea></div><button class="primary" id="run-button" type="submit">Run workflow →</button></div><p class="hint">Planning inspects an isolated snapshot. Review and approve the exact plan below before the Developer changes snapshot files.</p></form>
+<section class="workflow" aria-label="Workflow progress"><div class="section-head"><h2>Workflow</h2><div><span id="playback" class="phase" hidden>Replay · recorded events</span> <button class="secondary" id="replay" disabled type="button">Replay trace</button></div></div><div class="pipeline" id="pipeline"></div></section>
+<div class="columns"><section class="panel"><h2>Repository evidence</h2><div id="analysis-empty" class="empty">Analysis will appear here after the repository is inspected.</div><div id="analysis" hidden><p class="analysis-summary" id="architecture"></p><div class="facts"><div class="fact"><strong id="file-count">—</strong><span>Inspected text files</span></div><div class="fact"><strong id="dep-count">—</strong><span>Declared dependencies</span></div></div><h3>Languages &amp; frameworks</h3><div class="chips" id="stack"></div><h3>Relevant file candidates</h3><ul class="files" id="files"></ul><details><summary>Dependencies &amp; inspection limits</summary><div class="chips" id="dependencies" style="margin-top:12px"></div><ul class="list" id="limitations"></ul></details></div></section>
+<section class="panel"><h2>Execution trace</h2><div id="trace" class="trace" aria-live="polite"><div class="empty">No executions yet.</div></div><div id="result" class="result" hidden><h3 id="result-heading"></h3><p id="result-summary"></p></div><div class="identity" id="identity"></div><div class="detail"><h3>Selected step</h3><pre id="detail">Select a workflow step to inspect its execution record.</pre></div></section></div>
+<section class="panel" id="plan-panel" hidden style="margin-top:18px"><h2>Implementation plan <span class="phase">Draft · human review required</span></h2><p id="interpretation"></p><h3>Proposed steps</h3><ol class="list" id="plan-steps"></ol><h3>Risks</h3><ul class="list" id="plan-risks"></ul><h3>Tests to run · not executed</h3><ul class="list" id="plan-tests"></ul><h3>Evidence files read</h3><ul class="files" id="plan-context"></ul><h3>Planning limitations</h3><ul class="list" id="plan-limitations"></ul></section>
+<section class="panel" id="approval-panel" hidden style="margin-top:18px"><h2>Review before development</h2><p>Check the proposed steps and file paths above. Approval permits changes to those files in this snapshot. Tests and review have not run.</p><div class="identity" id="approval-identity"></div><button type="button" class="primary" id="approve-button" style="margin-top:16px">Approve this plan &amp; develop snapshot</button><p id="approval-status" class="hint" role="status"></p></section>
+<section class="panel" id="development-panel" hidden style="margin-top:18px"><h2>Development changes · untested</h2><p id="development-explanation"></p><ul class="files" id="development-files"></ul><ul class="list" id="development-limitations"></ul><details open><summary>Review diff</summary><pre id="development-diff" style="white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;max-height:600px;overflow:auto"></pre></details></section>
+</main>
+<script>
+(() => {
+  const steps = [{id:'supervisor',label:'Start task'},{id:'prepare_workspace',label:'Create snapshot'},{id:'analyze_repository',label:'Analyze repository'},{id:'plan_implementation',label:'Draft plan'},{id:'check_capability',label:'Approval boundary'},{id:'finalize_failure',label:'Planning report'},{id:'develop_implementation',label:'Develop changes'},{id:'finalize_development',label:'Validation boundary'}];
+  const byId = id => document.getElementById(id);
+  const records = new Map(); let events = [], replaying = false, selected = null, approvalId = null, runId = null;
+  const pipeline = byId('pipeline');
+  for (const [i, step] of steps.entries()) {
+    const button = document.createElement('button'); button.type = 'button'; button.className = 'node'; button.dataset.node = step.id; button.dataset.state = 'waiting'; button.setAttribute('aria-pressed','false');
+    const ordinal = document.createElement('div'); ordinal.className = 'ordinal'; ordinal.textContent = `STEP ${i+1}`;
+    const label = document.createElement('strong'); label.textContent = step.label;
+    const status = document.createElement('div'); status.className = 'node-status'; status.textContent = 'Waiting';
+    button.append(ordinal,label,status); button.addEventListener('click',()=>select(step.id)); pipeline.append(button);
+  }
+  function select(id) {
+    selected = id; for(const button of pipeline.children) button.setAttribute('aria-pressed',String(button.dataset.node === id));
+    byId('detail').textContent = records.has(id) ? JSON.stringify(records.get(id),null,2) : 'This step has not completed in this view.';
+  }
+  function status(text,color) { byId('status').textContent=text; byId('status-dot').style.background=color; }
+  function state(id,value,label) { const button=[...pipeline.children].find(b=>b.dataset.node===id); if(button){button.dataset.state=value;button.querySelector('.node-status').textContent=label;} }
+  function reset() {
+    approvalId=null;runId=null;byId('approval-panel').hidden=true;byId('development-panel').hidden=true;
+    byId('plan-panel').hidden=true; records.clear(); selected=null; for(const button of pipeline.children){button.dataset.state='waiting';button.setAttribute('aria-pressed','false');button.querySelector('.node-status').textContent='Waiting';}
+    byId('analysis').hidden=true; byId('analysis-empty').hidden=false; byId('trace').replaceChildren(); byId('result').hidden=true; byId('identity').textContent=''; byId('detail').textContent='Select a workflow step to inspect its execution record.';
+  }
+  function list(id,items,className) { const parent=byId(id);parent.replaceChildren();for(const text of items){const element=document.createElement(parent.tagName==='UL'?'li':'span');if(className)element.className=className;element.textContent=text;parent.append(element);} }
+  function renderAnalysis(data) {
+    byId('analysis').hidden=false;byId('analysis-empty').hidden=true;byId('architecture').textContent=data.architecture_summary;
+    byId('file-count').textContent=data.inspected_file_count ?? 'Unknown';byId('dep-count').textContent=data.dependencies.length;
+    list('stack',[...data.languages,...data.frameworks],'chip');list('files',data.relevant_files);list('dependencies',data.dependencies,'chip');list('limitations',data.limitations);
+  }
+  function renderPlan(plan) {
+    byId('plan-panel').hidden=false;byId('interpretation').textContent=plan.problem_interpretation;
+    const parent=byId('plan-steps');parent.replaceChildren();
+    for(const step of plan.steps){const item=document.createElement('li');item.textContent=step.description+(step.files.length?' — '+step.files.join(', '):'');parent.append(item);}
+    list('plan-risks',plan.risks);list('plan-tests',plan.tests_to_run);list('plan-context',plan.context_files);list('plan-limitations',plan.limitations);
+  }
+  function apply(event) {
+    if(event.kind==='run_started'){runId=event.snapshot.run_id;status(replaying?'Replay · recorded run':'Running','var(--blue)');byId('identity').textContent=`Task ${event.snapshot.task.task_id}\nRun ${event.snapshot.run_id}`;}
+    if(event.kind==='node_started'){state(event.node,'running',replaying?'Replay · started':'Running');}
+    if(event.kind==='node_completed'){
+      const snapshot=event.snapshot, record=snapshot.executions.at(-1);records.set(event.node,record);
+      const unavailable=record.error?.code==='PLAN_APPROVAL_REQUIRED';state(event.node,unavailable?'unavailable':record.status,unavailable?'Review required':record.status==='succeeded'?'Completed':'Failed');
+      const row=document.createElement('div');row.className='trace-row';const text=document.createElement('div');const title=document.createElement('strong');title.textContent=steps.find(s=>s.id===event.node)?.label ?? event.node;const detail=document.createElement('small');detail.textContent=record.output_summary ?? record.error?.message ?? record.status;text.append(title,detail);const time=document.createElement('span');time.className='time';time.textContent=`${(record.duration_seconds*1000).toFixed(2)} ms`;row.append(text,time);byId('trace').append(row);
+      if(snapshot.analysis)renderAnalysis(snapshot.analysis);if(snapshot.plan)renderPlan(snapshot.plan);if(selected===event.node)select(selected);
+    }
+    if(event.kind==='run_finished'){
+      for(const button of pipeline.children)if(button.dataset.state==='waiting')state(button.dataset.node,'skipped','Not run');
+      const snapshot=event.snapshot;const developerMissing=snapshot.errors.some(e=>e.code==='PLAN_APPROVAL_REQUIRED');const unconfigured=snapshot.errors.some(e=>e.code==='PLANNER_NOT_CONFIGURED');status(replaying?'Replay complete':developerMissing?'Awaiting plan approval':unconfigured?'Configure Ollama to plan':snapshot.task.status==='failed'?'Task failed':'Completed',developerMissing||unconfigured?'var(--amber)':snapshot.task.status==='failed'?'var(--red)':'var(--accent)');
+      byId('result').hidden=false;byId('result-heading').textContent=developerMissing?'Draft plan ready · review to continue':unconfigured?'Analysis complete · configure Ollama':snapshot.task.status==='failed'?'Workflow stopped':'Workflow complete';byId('result-summary').textContent=snapshot.report?.summary ?? snapshot.task.status;select(snapshot.plan?'plan_implementation':snapshot.analysis?'analyze_repository':'prepare_workspace');
+    }
+    if(event.kind==='run_error'){status('Execution error','var(--red)');for(const button of pipeline.children)if(button.dataset.state==='running')state(button.dataset.node,'failed','Interrupted');byId('result').hidden=false;byId('result-heading').textContent='Execution error';byId('result-summary').textContent=event.message;}
+  }
+  byId('run-form').addEventListener('submit',async event=>{
+    event.preventDefault();if(replaying)return;reset();events=[];byId('playback').hidden=true;byId('run-button').disabled=true;byId('replay').disabled=true;status('Connecting','var(--blue)');let finished=false;
+    try{
+      const response=await fetch('/monitor/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({repository_path:byId('repository').value,user_request:byId('task').value})});
+      if(!response.ok){const problem=await response.json();throw new Error(typeof problem.detail==='string'?problem.detail:'Check the repository path and request.');}
+      const reader=response.body.getReader(),decoder=new TextDecoder();let buffer='';
+      while(true){const {value,done}=await reader.read();if(done)break;buffer+=decoder.decode(value,{stream:true});let boundary;
+        while((boundary=buffer.indexOf('\n\n'))!==-1){const frame=buffer.slice(0,boundary);buffer=buffer.slice(boundary+2);const data=frame.split('\n').filter(line=>line.startsWith('data: ')).map(line=>line.slice(6)).join('\n');if(!data)continue;const item=JSON.parse(data);events.push(item);apply(item);if(item.kind==='run_finished'||item.kind==='run_error')finished=true;}
+      }
+      if(!finished)throw new Error('Connection ended before the workflow finished. Check the server terminal.');
+      const approval=await (await fetch('/monitor/approval',{cache:'no-store'})).json();
+      if(approval.approval_id&&approval.run_id===runId){approvalId=approval.approval_id;byId('approval-panel').hidden=false;byId('approval-identity').textContent=`Run ${approval.run_id} · Approval ${approvalId}`;byId('approve-button').disabled=false;byId('approval-status').textContent='Awaiting your review and approval.';}
+    }catch(error){apply({kind:'run_error',message:error.message});}
+    finally{byId('run-button').disabled=false;byId('replay').disabled=!events.some(e=>e.kind==='run_finished');}
+  });
+  byId('approve-button').addEventListener('click',async()=>{
+    if(!approvalId||replaying)return;
+    byId('approve-button').disabled=true;byId('run-button').disabled=true;byId('replay').disabled=true;
+    state('develop_implementation','running','Running');state('finalize_development','waiting','Waiting');
+    status('Developer generating changes','var(--blue)');byId('approval-status').textContent='Generating and validating file changes. Local inference may take several minutes.';
+    try{
+      const response=await fetch('/monitor/develop',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({approval_id:approvalId})});
+      const snapshot=await response.json();if(!response.ok)throw new Error(typeof snapshot.detail==='string'?snapshot.detail:'Development request failed.');
+      const artifact=snapshot.development;
+      if(artifact){byId('development-panel').hidden=false;byId('development-explanation').textContent=artifact.explanation;list('development-files',artifact.changes.map(c=>`${c.kind}: ${c.path} — ${c.summary}`));list('development-limitations',artifact.limitations);byId('development-diff').textContent=artifact.diff;status('Changes ready · tests are next','var(--amber)');byId('approval-status').textContent='Approved snapshot changed. Review the diff below. Tests and review have not run.';}
+      else{status('Development stopped','var(--red)');byId('approval-status').textContent=snapshot.report.summary;}
+      for(const record of snapshot.executions.filter(r=>r.operation==='develop_implementation'||r.operation==='finalize_development')){records.set(record.operation,record);state(record.operation,record.error?.code==='TEST_AGENT_NOT_IMPLEMENTED'?'unavailable':record.status,record.error?.code==='TEST_AGENT_NOT_IMPLEMENTED'?'Tests are next':record.status==='succeeded'?'Completed':'Failed');const row=document.createElement('div');row.className='trace-row';row.textContent=`${record.operation}: ${record.output_summary} (${record.duration_seconds.toFixed(2)} s)`;byId('trace').append(row);}
+      byId('result-heading').textContent=artifact?'Development complete · validation pending':'Development stopped';byId('result-summary').textContent=snapshot.report.summary;
+      select('develop_implementation');
+      byId('identity').textContent+=`\nSnapshot: ${snapshot.workspace_path}`;
+    }catch(error){status('Development error','var(--red)');state('develop_implementation','failed','Interrupted');state('finalize_development','skipped','Not run');byId('approval-status').textContent=error.message;}
+    finally{approvalId=null;byId('run-button').disabled=false;}
+  });
+  byId('replay').addEventListener('click',async()=>{
+    if(replaying||!events.length)return;replaying=true;reset();byId('playback').hidden=false;byId('run-button').disabled=true;byId('replay').disabled=true;
+    try{for(const event of events){apply(event);await new Promise(resolve=>setTimeout(resolve,550));}}
+    finally{replaying=false;byId('run-button').disabled=false;byId('replay').disabled=false;}
+  });
+})();
+</script>
+</body>
+</html>

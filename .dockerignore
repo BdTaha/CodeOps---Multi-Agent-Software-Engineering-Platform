@@ -1,0 +1,10 @@
+.venv
+.git
+.env
+.env.*
+.workspaces
+engineering.db*
+node_modules
+frontend/node_modules
+__pycache__
+*.pyc

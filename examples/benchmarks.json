@@ -1,0 +1,8 @@
+[
+  {
+    "repository": "benchmark-greeting",
+    "request": "Fix greeting.py so greet strips leading and trailing whitespace from the name. Preserve existing tests and do not modify tests. Only change greeting.py.",
+    "allowed_paths": ["greeting.py"],
+    "framework": "unittest"
+  }
+]
