@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 class Worker:
-    def __init__(self, settings, store=None, development_provider=None, review_provider=None, product_plan_provider=None, coding_plan_provider=None):
+    def __init__(self, settings, store=None, development_provider=None, review_provider=None, product_plan_provider=None, coding_plan_provider=None, evidence_provider=None):
         self.config = settings
         self.store = store or TaskStore(settings.database_url.get_secret_value())
         self.owner = str(uuid4())
@@ -33,10 +33,14 @@ class Worker:
         self.product_plan_provider = product_plan_provider
         self.coding_plan_provider = coding_plan_provider
         self.planning_store = PlanningStore(self.store.engine)
+        from autonomous_engineering.infrastructure.acceptance_store import AcceptanceEvidenceStore
+        self.evidence_store = AcceptanceEvidenceStore(settings,self.store,evidence_provider)
 
     def run_once(self):
         self.store.worker_seen(self.owner)
         self.store.settle_interrupted()
+        if self.evidence_store.run_once(self.owner):
+            return True
         job = self.store.claim(self.owner, self.config.lease_seconds)
         if job is None:
             return run_product_plan(self.config, self.planning_store, self.owner, self.product_plan_provider,

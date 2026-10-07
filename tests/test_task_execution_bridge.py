@@ -102,6 +102,7 @@ def success(bridge):
     assert bridge[0].post(f'/tasks/{job_id}/approve',json=dict(approval_id=job['approval'],run_tests=True,test_backend='local',framework='unittest',max_attempts=1)).status_code==202
     assert worker.run_once()
     assert bridge[2].get(job_id)['phase']=='succeeded'
+    assert worker.run_once()  # Independent post-success evidence materialization.
     return bridge[0].get(f'/engineering-tasks/{first(bridge).id}/execution').json(),worker,planner,developer
 
 
@@ -120,11 +121,11 @@ def test_request_approval_real_worker_review_acceptance_and_delivery_boundary(br
     evidence=client.get(f"/tasks/{job['id']}/delivery").json()
     refused=client.post(f"/tasks/{job['id']}/delivery",json=dict(receipt=evidence['receipt'],action='export'))
     assert refused.status_code==409 and 'Accept' in refused.text
-    accepted=client.post(f"/engineering-tasks/{task['id']}/accept",json=dict(revision=task['revision'],execution_task_id=job['id']))
+    accepted=client.post(f"/engineering-tasks/{task['id']}/accept",json=dict(revision=task['revision'],execution_task_id=job['id'],evidence_version=result['acceptance_evidence']['version'],unresolved_acknowledged=True))
     assert accepted.status_code==200,accepted.text
     assert accepted.json()['task']['status']=='done' and accepted.json()['current']['review_state']=='accepted'
     assert accepted.json()['current']['reviewed_at'] and store.get(job['id'])['delivery']=={}
-    assert client.post(f"/engineering-tasks/{task['id']}/accept",json=dict(revision=task['revision'],execution_task_id=job['id'])).status_code==409
+    assert client.post(f"/engineering-tasks/{task['id']}/accept",json=dict(revision=task['revision'],execution_task_id=job['id'],evidence_version=result['acceptance_evidence']['version'],unresolved_acknowledged=True)).status_code==409
     cap=client.get(f"/workspace/members/{ai['id']}/capacity").json()
     assert cap['active_execution_count']==0 and cap['runtime_connected'] and cap['assigned_queue_depth']==3
     # Reopening API/store preserves history and human acceptance.
@@ -224,7 +225,7 @@ def test_request_changes_creates_new_isolated_link_without_mutating_previous_sna
     assert updated['history'][0]['review_state']=='changes_requested' and updated['history'][0]['feedback']=='Also uppercase the greeting name'
     assert store.get(job['id'])['snapshot']==original and updated['current']['parent_execution_task_id']==job['id']
     assert 'Human-requested changes' in updated['execution']['snapshot']['task']['request']['user_request']
-    assert client.post(f"/engineering-tasks/{task['id']}/accept",json=dict(revision=updated['task']['revision'],execution_task_id=job['id'])).status_code==409
+    assert client.post(f"/engineering-tasks/{task['id']}/accept",json=dict(revision=updated['task']['revision'],execution_task_id=job['id'],evidence_version=result['acceptance_evidence']['version'],unresolved_acknowledged=True)).status_code==409
     new_worker,_,_=worker_for(bridge);assert new_worker.run_once()
     next_job=store.get(updated['execution']['id'])
     assert next_job['snapshot']['workspace_path']!=original['workspace_path'] and next_job['phase']=='awaiting_approval'
@@ -242,7 +243,7 @@ def test_failed_execution_preserves_in_progress_and_releases_slot(bridge):
     task=planning.task(first(bridge).id)
     assert task.status=='in_progress' and task.execution_run_id is not None
     assert client.get(f"/workspace/members/{ai['id']}/capacity").json()['active_execution_count']==0
-    assert client.post(f'/engineering-tasks/{task.id}/accept',json=dict(revision=task.revision,execution_task_id=job['id'])).status_code==409
+    assert client.post(f'/engineering-tasks/{task.id}/accept',json=dict(revision=task.revision,execution_task_id=job['id'],evidence_version=result['acceptance_evidence']['version'],unresolved_acknowledged=True)).status_code==409
     assert start(bridge,task).status_code==202
 
 
@@ -283,7 +284,7 @@ def test_acceptance_refuses_modified_reviewed_snapshot_and_invalid_execution_id(
     task=result['task'];job=result['execution'];client=bridge[0]
     assert client.post(f"/engineering-tasks/{task['id']}/accept",json=dict(revision=task['revision'],execution_task_id='invalid')).status_code==422
     Path(job['snapshot']['workspace_path'],'app.py').write_text('changed after review\n',encoding='utf-8')
-    rejected=client.post(f"/engineering-tasks/{task['id']}/accept",json=dict(revision=task['revision'],execution_task_id=job['id']))
+    rejected=client.post(f"/engineering-tasks/{task['id']}/accept",json=dict(revision=task['revision'],execution_task_id=job['id'],evidence_version=result['acceptance_evidence']['version'],unresolved_acknowledged=True))
     assert rejected.status_code==409 and 'changed' in rejected.text
     assert bridge[3].task(task['id']).status=='review' and bridge[2].get(job['id'])['delivery']=={}
 
@@ -294,7 +295,7 @@ def test_explicit_delivery_reuses_existing_export_after_acceptance(bridge,monkey
     if git_dir.is_dir():monkeypatch.setenv('PATH',str(git_dir)+os.pathsep+os.environ['PATH'])
     if not shutil.which('git'):pytest.skip('Git required for commit export')
     result,_,_,_=success(bridge);task=result['task'];job=result['execution'];client=bridge[0]
-    accepted=client.post(f"/engineering-tasks/{task['id']}/accept",json=dict(revision=task['revision'],execution_task_id=job['id']))
+    accepted=client.post(f"/engineering-tasks/{task['id']}/accept",json=dict(revision=task['revision'],execution_task_id=job['id'],evidence_version=result['acceptance_evidence']['version'],unresolved_acknowledged=True))
     assert accepted.status_code==200 and bridge[2].get(job['id'])['delivery']=={}
     evidence=client.get(f"/tasks/{job['id']}/delivery").json()
     exported=client.post(f"/tasks/{job['id']}/delivery",json=dict(receipt=evidence['receipt'],action='export'))

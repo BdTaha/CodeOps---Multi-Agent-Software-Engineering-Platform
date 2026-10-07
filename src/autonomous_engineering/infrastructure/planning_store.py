@@ -41,7 +41,8 @@ dependencies = Table('engineering_task_dependencies', metadata,
     Column('depends_on_id', String(36), ForeignKey('engineering_tasks.id'), primary_key=True))
 criteria = Table('engineering_acceptance_criteria', metadata,
     Column('task_id', String(36), ForeignKey('engineering_tasks.id'), primary_key=True),
-    Column('position', Integer, primary_key=True), Column('description', Text, nullable=False))
+    Column('position', Integer, primary_key=True), Column('description', Text, nullable=False),
+    Column('id', String(36), unique=True))
 
 
 class PlanningConflict(RuntimeError):
@@ -87,8 +88,8 @@ class PlanningStore:
         values['key'] = 'CO-' + str(values.pop('number'))
         values['dependencies'] = [{'task_id': ref} for ref in db.execute(select(dependencies.c.depends_on_id)
             .where(dependencies.c.task_id == values['id']).order_by(dependencies.c.depends_on_id)).scalars()]
-        values['acceptance_criteria'] = [{'description': text} for text in db.execute(select(criteria.c.description)
-            .where(criteria.c.task_id == values['id']).order_by(criteria.c.position)).scalars()]
+        values['acceptance_criteria'] = [dict(item) for item in db.execute(select(criteria.c.id, criteria.c.description)
+            .where(criteria.c.task_id == values['id']).order_by(criteria.c.position)).mappings()]
         return EngineeringTask.model_validate(values)
 
     def task(self, task_id):
@@ -172,7 +173,7 @@ class PlanningStore:
                 for ref in task.dependencies:
                     db.execute(insert(dependencies).values(task_id=task_ids[task.ref], depends_on_id=task_ids[ref]))
                 for position, criterion in enumerate(task.acceptance_criteria):
-                    db.execute(insert(criteria).values(task_id=task_ids[task.ref], position=position, description=criterion.description))
+                    db.execute(insert(criteria).values(id=str(uuid4()), task_id=task_ids[task.ref], position=position, description=criterion.description))
         return self.get(goal_id)
 
     def set_status(self, task_id, status, revision):

@@ -39,7 +39,13 @@ def active_for_task(db, task_id):
 
 
 def synchronize_completion(db, link, phase):
+    if link and phase in {'failed','cancelled'}:
+        from autonomous_engineering.infrastructure.acceptance_tables import evidence_runs
+        db.execute(update(evidence_runs).where(evidence_runs.c.execution_task_id==link['execution_task_id'],evidence_runs.c.state=='waiting')
+            .values(state='not_generated'))
     if link and phase == 'succeeded' and link['review_state'] == 'pending':
+        from autonomous_engineering.infrastructure.acceptance_store import queue_evidence
+        queue_evidence(db, link['execution_task_id'])
         db.execute(update(engineering_tasks).where(engineering_tasks.c.id == link['engineering_task_id'],
             engineering_tasks.c.execution_run_id == link['run_id'], engineering_tasks.c.status == 'in_progress')
             .values(status='review', revision=engineering_tasks.c.revision + 1))

@@ -215,10 +215,11 @@ The app remains a local workspace with coarse global write fencing and polling.
 Coding quality depends on the configured model, tests and human review. Approval
 waiting reserves a slot until continued or cancelled. Request changes regenerates
 the implementation from fresh source with bounded prior-result context; it is not
-an incremental branch continuation. There is no criterion-level evidence mapping,
-automatic dispatcher, live hosted preview, organizational Tester/Reviewer mapping,
+an incremental branch continuation. There is no automatic dispatcher, live hosted preview, organizational Tester/Reviewer mapping,
 provider selector, accounts, automatic Git publication, merge or deployment.
 
-The next phase should design stronger task acceptance evidence: associate real
-checks with acceptance criteria and make unresolved requirements explicit, while
-keeping human acceptance and delivery separate. It is not implemented here.
+The subsequent [acceptance evidence layer](acceptance-evidence.md) now maps retained
+final artifacts to frozen per-run criteria, records human acknowledgment for
+unresolved evidence, and preserves historical packages. Its guide documents the
+conservative mapping rules and remaining limitations. Human acceptance and
+delivery remain separate.

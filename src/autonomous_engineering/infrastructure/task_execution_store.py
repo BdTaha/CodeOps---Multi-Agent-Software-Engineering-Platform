@@ -61,10 +61,12 @@ class TaskExecutionStore:
         execution = self.store.unpack(db.execute(select(tasks).where(tasks.c.id == latest['execution_task_id'])).mappings().one()) if latest else None
         reviewable = bool(latest and latest['phase'] == 'succeeded' and latest['review_state'] == 'pending' and task.status == 'review')
         execution_owner = next((item for item in snapshot['workspace_members'] if latest and str(item.id)==latest['ai_member_id']),None)
+        from autonomous_engineering.infrastructure.acceptance_store import evidence_snapshot
         return dict(task=task, owner=owner, execution_owner=execution_owner, current=latest, execution=execution, history=history,
             eligibility=dict(can_start=not reasons, reasons=reasons, dependencies=prerequisites,
                 active_execution_count=count, max_concurrent_executions=owner.max_concurrent_executions if owner and owner.member_type=='ai' else None),
-            can_accept=reviewable, can_request_changes=reviewable)
+            can_accept=reviewable, can_request_changes=reviewable,
+            acceptance_evidence=evidence_snapshot(db,latest['execution_task_id']) if latest else None)
 
     def snapshot(self, task_id):
         with self.teams._read() as db:
@@ -107,6 +109,8 @@ class TaskExecutionStore:
             effective_feedback = feedback or (previous.get('feedback') if previous and previous['phase'] in {'failed','cancelled'} else None)
             state, options = execution_request(self.config, project['path'], self._request(task, context, project, effective_feedback))
             self.store.create_in_transaction(db, state, options)
+            from autonomous_engineering.infrastructure.acceptance_store import freeze_requirements
+            freeze_requirements(db,state.task.task_id,task.acceptance_criteria)
             now = utc_now().isoformat()
             if feedback:
                 db.execute(update(execution_links).where(execution_links.c.execution_task_id == previous['execution_task_id'])
@@ -121,7 +125,7 @@ class TaskExecutionStore:
                 dict(engineering_task_id=str(task.id), key=task.key, ai_member_id=str(task.assignee_id)))
         return self.snapshot(task_id)
 
-    def accept(self, task_id, revision, execution_id):
+    def accept(self, task_id, revision, execution_id, evidence_version=None, unresolved_acknowledged=False):
         initial = self.teams.planning.task(task_id)
         if initial is None: raise TeamNotFound('Engineering task not found.')
         with self.engine.begin() as db:
@@ -133,6 +137,8 @@ class TaskExecutionStore:
             # Reuse existing evidence/workspace validation; acceptance is not delivery.
             receipt(WorkflowState.model_validate(context['execution']['snapshot']), self.config.workspace_root)
             now = utc_now().isoformat()
+            from autonomous_engineering.infrastructure.acceptance_store import record_acceptance
+            record_acceptance(db,execution_id,evidence_version,unresolved_acknowledged,now)
             db.execute(update(execution_links).where(execution_links.c.execution_task_id == str(execution_id))
                 .values(review_state='accepted', reviewed_at=now))
             db.execute(update(engineering_tasks).where(engineering_tasks.c.id == str(task_id))

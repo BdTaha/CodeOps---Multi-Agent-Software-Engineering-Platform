@@ -4,7 +4,7 @@ export interface EngineeringTask {
   title: string; description: string; status: EngineeringStatus;
   priority: 'low' | 'medium' | 'high' | 'urgent'; estimated_hours: number;
   technical_area: string; dependencies: { task_id: string }[];
-  acceptance_criteria: { description: string }[]; created_at: string;
+  acceptance_criteria: { id:string; description: string }[]; created_at: string;
   revision: number; execution_run_id: string | null;
   squad_id: string | null; assignee_id: string | null;
 }

@@ -41,6 +41,10 @@ class AcceptanceCriterion(DomainModel):
     description: Summary
 
 
+class PersistedAcceptanceCriterion(AcceptanceCriterion):
+    id: UUID
+
+
 class DraftEpic(DomainModel):
     ref: EpicRef
     title: Title
@@ -126,7 +130,7 @@ class EngineeringTask(DomainModel):
     estimated_hours: float = Field(gt=0, le=160, allow_inf_nan=False)
     technical_area: TechnicalArea
     dependencies: tuple[TaskDependency, ...]
-    acceptance_criteria: tuple[AcceptanceCriterion, ...]
+    acceptance_criteria: tuple[PersistedAcceptanceCriterion, ...]
     created_at: UtcTimestamp
     revision: int = Field(ge=0)
     execution_run_id: UUID | None = None

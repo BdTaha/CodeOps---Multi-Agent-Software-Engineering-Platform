@@ -19,6 +19,8 @@ def initialize_team_schema(engine):
         # databases where the earlier workspace migration already completed.
         from autonomous_engineering.infrastructure.task_execution_tables import execution_links
         execution_links.create(db, checkfirst=True)
+        from autonomous_engineering.infrastructure.acceptance_tables import initialize_acceptance_schema
+        initialize_acceptance_schema(db)
         db.execute(_insert(db)(workspace_state).values(id='local', revision=0).on_conflict_do_nothing(index_elements=['id']))
         if db.execute(select(migrations.c.version).where(migrations.c.version == VERSION)).first():
             return

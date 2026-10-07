@@ -40,6 +40,10 @@ Human load is global across projects, with reserved effort and a project breakdo
 ownership is separate from real execution reservations. Use **Run with CodeOps** on an eligible
 AI developer task, approve its coding plan, then review and accept the result. Delivery remains
 explicit. See [the execution bridge](docs/task-execution-bridge.md).
+The default Acceptance review tab now maps each requirement to retained per-run
+evidence, distinguishes Verified / Supported / Unverified and conflicts, and
+requires acknowledgment for unresolved or unavailable evidence before acceptance.
+See [acceptance evidence](docs/acceptance-evidence.md).
 **Recommend assignments** proposes a plan; only **Apply suggested assignments** saves it.
 Team management does not require Ollama or Docker and does not start coding execution.
 
