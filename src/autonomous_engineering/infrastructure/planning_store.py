@@ -52,6 +52,8 @@ class PlanningStore:
     def __init__(self, engine):
         self.engine = engine
         metadata.create_all(engine, tables=[goals, epics, engineering_tasks, dependencies, criteria])
+        from autonomous_engineering.infrastructure.team_tables import TEAM_TABLES
+        metadata.create_all(engine, tables=TEAM_TABLES)
 
     def project(self, project_id):
         with self.engine.connect() as db:
@@ -59,9 +61,11 @@ class PlanningStore:
             return json.loads(row) if row else None
 
     def enqueue(self, project_id, goal):
+        from autonomous_engineering.infrastructure.team_tables import lock_project
         goal_id = str(uuid4())
         try:
             with self.engine.begin() as db:
+                lock_project(db, project_id)
                 db.execute(insert(goals).values(id=goal_id, project_id=str(project_id), goal=goal,
                     created_at=utc_now().isoformat(), status='queued', active_project=str(project_id), revision=0, attempts=0))
         except IntegrityError as exc:
@@ -75,7 +79,11 @@ class PlanningStore:
         return self.get(goal_id) if goal_id else None
 
     def _task(self, db, row):
+        from autonomous_engineering.infrastructure.team_tables import assignments
         values = dict(row)
+        assignment = db.execute(select(assignments).where(assignments.c.task_id == values['id'])).mappings().first()
+        values['squad_id'] = assignment['squad_id'] if assignment else None
+        values['assignee_id'] = assignment['assignee_id'] if assignment else None
         values['key'] = 'CO-' + str(values.pop('number'))
         values['dependencies'] = [{'task_id': ref} for ref in db.execute(select(dependencies.c.depends_on_id)
             .where(dependencies.c.task_id == values['id']).order_by(dependencies.c.depends_on_id)).scalars()]
@@ -136,9 +144,11 @@ class PlanningStore:
                 raise LostLease('Product planning lease was lost.')
 
     def complete(self, goal_id, owner, draft: ProductPlanDraft, attempts, model):
+        from autonomous_engineering.infrastructure.team_tables import lock_project
         draft = ProductPlanDraft.model_validate(draft)
         with self.engine.begin() as db:
             row = db.execute(select(goals).where(goals.c.id == goal_id)).mappings().one()
+            lock_project(db, row['project_id'])
             result = db.execute(update(goals).where(goals.c.id == goal_id, goals.c.owner == owner,
                 goals.c.status == 'generating', goals.c.lease > time.time()).values(status='ready', title=draft.title,
                     summary=draft.summary, assumptions=json.dumps(draft.assumptions), attempts=attempts, model=model,
@@ -166,7 +176,10 @@ class PlanningStore:
         return self.get(goal_id)
 
     def set_status(self, task_id, status, revision):
+        from autonomous_engineering.infrastructure.team_tables import lock_project
         with self.engine.begin() as db:
+            project_id = db.execute(select(engineering_tasks.c.project_id).where(engineering_tasks.c.id == str(task_id))).scalar_one()
+            lock_project(db, project_id)
             result = db.execute(update(engineering_tasks).where(engineering_tasks.c.id == str(task_id),
                 engineering_tasks.c.revision == revision).values(status=status.value, revision=revision + 1))
             if result.rowcount != 1:

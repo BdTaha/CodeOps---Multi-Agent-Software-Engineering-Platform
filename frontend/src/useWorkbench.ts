@@ -12,7 +12,7 @@ operationAgents.set('route_validation', 'supervisor');
 export default function useWorkbench() {
   const [view, setView] = useState<View>(() => {
     const saved = localStorage.getItem('codeops-view');
-    return ['projects', 'planning', 'board', 'workspace', 'review', 'results', 'metrics'].includes(saved ?? '') ? saved as View : 'projects';
+    return ['projects', 'planning', 'board', 'teams', 'workspace', 'review', 'results', 'metrics'].includes(saved ?? '') ? saved as View : 'projects';
   });
   const [preview, setPreview] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);

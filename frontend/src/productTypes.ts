@@ -6,6 +6,7 @@ export interface EngineeringTask {
   technical_area: string; dependencies: { task_id: string }[];
   acceptance_criteria: { description: string }[]; created_at: string;
   revision: number; execution_run_id: string | null;
+  squad_id: string | null; assignee_id: string | null;
 }
 export interface ProjectPlan {
   id: string; project_id: string; title: string; summary: string; assumptions: string[];

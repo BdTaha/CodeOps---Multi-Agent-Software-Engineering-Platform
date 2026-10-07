@@ -130,6 +130,8 @@ class EngineeringTask(DomainModel):
     created_at: UtcTimestamp
     revision: int = Field(ge=0)
     execution_run_id: UUID | None = None
+    squad_id: UUID | None = None
+    assignee_id: UUID | None = None
 
 
 class ProjectPlan(DomainModel):

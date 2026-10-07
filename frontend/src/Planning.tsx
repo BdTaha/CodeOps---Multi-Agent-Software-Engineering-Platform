@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, CheckSquare, Clock3, Layers3, Loader2, Plus, X, Filter, Circle, CircleDashed, CircleDot, CircleCheck } from 'lucide-react';
+import { ArrowRight, CheckSquare, Clock3, Layers3, Loader2, Plus, X, Filter, Circle, CircleDashed, CircleDot, CircleCheck, Bot, UserRound } from 'lucide-react';
 import type { Workbench } from './useWorkbench';
 import type { EngineeringStatus, EngineeringTask, PlanRecord } from './productTypes';
 import { boardColumns } from './productTypes';
 import * as api from './productApi';
+import * as teamApi from './teamApi';
+import type { TeamSnapshot } from './teamTypes';
+import TaskAssignmentEditor from './TaskAssignmentEditor';
 
 const hours = (value: number) => `${Number(value.toFixed(2))}h`;
 
@@ -18,18 +21,24 @@ export default function Planning({ lab, board = false }: { lab: Workbench; board
   const [query, setQuery] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [areaFilter, setAreaFilter] = useState('all');
+  const [assigneeFilter, setAssigneeFilter] = useState('all');
+  const [squadFilter, setSquadFilter] = useState('all');
+  const [teamData, setTeamData] = useState<TeamSnapshot | null>(null);
   const projectId = lab.project.id;
   const current = useRef(projectId); current.current = projectId;
   const pending = record?.status === 'queued' || record?.status === 'generating';
   const plan = record?.plan;
   const filteredTasks = plan?.tasks.filter(task => `${task.key} ${task.title} ${task.description}`.toLowerCase().includes(query.toLowerCase())
-    && (priorityFilter === 'all' || task.priority === priorityFilter) && (areaFilter === 'all' || task.technical_area === areaFilter)) ?? [];
-  const filtersActive = !!query || priorityFilter !== 'all' || areaFilter !== 'all';
+    && (priorityFilter === 'all' || task.priority === priorityFilter) && (areaFilter === 'all' || task.technical_area === areaFilter)
+    && (assigneeFilter === 'all' || (assigneeFilter === 'unassigned' ? !task.assignee_id : task.assignee_id === assigneeFilter))
+    && (squadFilter === 'all' || task.squad_id === squadFilter)) ?? [];
+  const filtersActive = !!query || priorityFilter !== 'all' || areaFilter !== 'all' || assigneeFilter !== 'all' || squadFilter !== 'all';
   const selectedTask = plan?.tasks.find(task => task.id === selected);
   useEffect(() => {
     let alive = true;
     setLoading(true); setRecord(null); setGoal(''); setSelected(null); setError(null);
-    setQuery(''); setPriorityFilter('all'); setAreaFilter('all');
+    setQuery(''); setPriorityFilter('all'); setAreaFilter('all'); setAssigneeFilter('all'); setSquadFilter('all'); setTeamData(null);
+    teamApi.getTeams(projectId).then(result => { if (alive) setTeamData(result); }).catch(failure => { if (alive) setError((failure as Error).message); });
     api.getPlan(projectId).then(result => { if (alive) { setRecord(result); setGoal(result?.goal.goal ?? ''); } })
       .catch(failure => { if (alive) setError((failure as Error).message); })
       .finally(() => { if (alive) setLoading(false); });
@@ -46,6 +55,11 @@ export default function Planning({ lab, board = false }: { lab: Workbench; board
     timer = setTimeout(poll, 1000);
     return () => { alive = false; clearTimeout(timer); };
   }, [pending, projectId]);
+  function updateTask(updated: EngineeringTask) {
+    if (current.current !== updated.project_id) return;
+    setRecord(previous => previous?.plan ? { ...previous, plan: { ...previous.plan, tasks: previous.plan.tasks.map(item => item.id === updated.id ? updated : item) } } : previous);
+    teamApi.getTeams(projectId).then(result => {if (current.current === projectId) setTeamData(result);}).catch(failure => setError((failure as Error).message));
+  }
   async function submit() {
     setSubmitting(true); setError(null);
     try { const result = await api.createPlan(projectId, goal.trim()); if (current.current === projectId) setRecord(result); }
@@ -71,7 +85,14 @@ export default function Planning({ lab, board = false }: { lab: Workbench; board
     <div className={board ? 'board-toolbar' : 'page-heading'}><div className={board ? 'board-toolbar-title' : ''}><h1>{board ? 'Board' : 'Project planning'}</h1>{board ? <><span className="board-total">{plan?.tasks.length ?? 0}</span><button className={`board-filter-button ${filtersActive ? 'has-filters' : ''}`} aria-expanded={filterOpen} aria-controls="board-filters" onClick={() => setFilterOpen(open => !open)}><Filter size={14} /> Filter</button></> : <p>Start with a goal. Build a clear engineering plan.</p>}</div>
       <label className="project-picker"><span>Project</span><select aria-label="Planning project" value={projectId} onChange={e => { const next = lab.projects.find(item => item.id === e.target.value); if (next) { lab.setProject(next); localStorage.setItem('codeops-project', next.id); } }}>{lab.projects.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
     </div>
-    {board && filterOpen && <div className="board-filters" id="board-filters"><label>Search tasks<input aria-label="Search board tasks" placeholder="Title or task ID…" value={query} onChange={e => setQuery(e.target.value)} /></label><label>Priority<select value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)}><option value="all">All priorities</option>{['urgent', 'high', 'medium', 'low'].map(priority => <option key={priority} value={priority}>{priority}</option>)}</select></label><label>Area<select value={areaFilter} onChange={e => setAreaFilter(e.target.value)}><option value="all">All areas</option>{[...new Set(plan?.tasks.map(task => task.technical_area) ?? [])].sort().map(area => <option key={area}>{area}</option>)}</select></label>{filtersActive && <button className="text-button" onClick={() => { setQuery(''); setPriorityFilter('all'); setAreaFilter('all'); }}>Clear filters</button>}</div>}
+    {board && filterOpen && <div className="board-filters" id="board-filters">
+      <label>Search tasks<input aria-label="Search board tasks" placeholder="Title or task ID…" value={query} onChange={e => setQuery(e.target.value)} /></label>
+      <label>Priority<select value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)}><option value="all">All priorities</option>{['urgent', 'high', 'medium', 'low'].map(priority => <option key={priority} value={priority}>{priority}</option>)}</select></label>
+      <label>Area<select value={areaFilter} onChange={e => setAreaFilter(e.target.value)}><option value="all">All areas</option>{[...new Set(plan?.tasks.map(task => task.technical_area) ?? [])].sort().map(area => <option key={area}>{area}</option>)}</select></label>
+      <label>Assignee<select value={assigneeFilter} onChange={e => setAssigneeFilter(e.target.value)}><option value="all">All assignees</option><option value="unassigned">Unassigned</option>{teamData?.members.map(member => <option key={member.id} value={member.id}>{member.name}</option>)}</select></label>
+      <label>Squad<select value={squadFilter} onChange={e => setSquadFilter(e.target.value)}><option value="all">All squads</option>{teamData?.squads.map(squad => <option key={squad.id} value={squad.id}>{squad.name}</option>)}</select></label>
+      {filtersActive && <button className="text-button" onClick={() => { setQuery(''); setPriorityFilter('all'); setAreaFilter('all'); setAssigneeFilter('all'); setSquadFilter('all'); }}>Clear filters</button>}
+    </div>}
     {error && <div className="product-error" role="alert">{error}</div>}
     {record?.status === 'failed' && <div className="product-error" role="alert"><strong>Planning could not complete.</strong><p>{record.error}</p><p>Your goal is retained. Check local Ollama, then submit again.</p></div>}
     {!board && <form className="goal-panel" onSubmit={e => { e.preventDefault(); void submit(); }}>
@@ -92,6 +113,7 @@ export default function Planning({ lab, board = false }: { lab: Workbench; board
             <div className="board-cards">{tasks.map(task => <article className="engineering-card" key={task.id}>
               <button className="task-open" onClick={() => setSelected(task.id)} aria-label={`Open ${task.key}: ${task.title}`}><span className="task-card-heading"><span className="task-key">{task.key}</span><span className="task-estimate"><Clock3 size={12} />{hours(task.estimated_hours)}</span></span><h3>{task.title}</h3></button>
               <div className="task-card-footer"><span className={`priority-signal signal-${task.priority}`} title={`${task.priority} priority`} aria-label={`${task.priority} priority`}><i /><i /><i /></span><span className={`area-tag area-${task.technical_area.toLowerCase()}`}><i />{task.technical_area}</span><label className="card-status"><span className="sr-only">Status for {task.key}</span><select aria-label={`Status for ${task.key}`} disabled={changing} value={task.status} onChange={e => void changeStatus(task, e.target.value as EngineeringStatus)}>{boardColumns.map(option => <option key={option.status} value={option.status}>{option.label}</option>)}</select></label></div>
+              <div className="task-card-owner">{task.assignee_id ? <>{teamData?.members.find(member => member.id === task.assignee_id)?.member_type === 'ai' ? <Bot size={13}/> : <UserRound size={13}/>}<span>{teamData?.members.find(member => member.id === task.assignee_id)?.name ?? 'Loading assignee…'}</span></> : <><UserRound size={13}/><span>Unassigned</span></>}{task.squad_id && <small>{teamData?.squads.find(squad => squad.id === task.squad_id)?.name ?? 'Loading squad…'}</small>}</div>
             </article>)}{!tasks.length && <div className="board-empty">No tasks</div>}</div>
           </section>;
         })}</div> : <div className="epic-list">{plan.epics.map(epic => <section className="epic-panel" key={epic.id}><div className="epic-heading"><Layers3 size={16} /><div><h3>{epic.title}</h3><p>{epic.description}</p></div><span className="count">{plan.tasks.filter(task => task.epic_id === epic.id).length}</span></div>
@@ -99,11 +121,11 @@ export default function Planning({ lab, board = false }: { lab: Workbench; board
         </section>)}</div>}
         {!board && !!plan.assumptions.length && <details className="plan-assumptions"><summary>Planning assumptions · {plan.assumptions.length}</summary><ul>{plan.assumptions.map((item, index) => <li key={index}>{item}</li>)}</ul></details>}
       </> : <div className="planning-placeholder"><Layers3 size={22} /><div><strong>No project plan yet</strong><p>{board ? 'Create a plan to organize engineering tasks on this board.' : 'Describe a goal above to generate your first plan.'}</p>{board && <button className="button quiet" onClick={() => lab.setView('planning')}>Go to planning <ArrowRight size={14} /></button>}</div></div>}
-    {selectedTask && plan && <TaskDetail task={selectedTask} tasks={plan.tasks} changing={changing} error={error} onClose={() => setSelected(null)} onStatus={status => void changeStatus(selectedTask, status)} onDependency={setSelected} />}
+    {selectedTask && plan && <TaskDetail task={selectedTask} tasks={plan.tasks} changing={changing} error={error} onClose={() => setSelected(null)} onStatus={status => void changeStatus(selectedTask, status)} onDependency={setSelected} onTaskChange={updateTask} />}
   </div>;
 }
 
-function TaskDetail({ task, tasks, changing, error, onClose, onStatus, onDependency }: { task: EngineeringTask; tasks: EngineeringTask[]; changing: boolean; error: string | null; onClose: () => void; onStatus: (status: EngineeringStatus) => void; onDependency: (id: string) => void }) {
+export function TaskDetail({ task, tasks, changing, error, onClose, onStatus, onDependency, onTaskChange }: { task: EngineeringTask; tasks: EngineeringTask[]; changing: boolean; error: string | null; onClose: () => void; onStatus: (status: EngineeringStatus) => void; onDependency: (id: string) => void; onTaskChange: (task: EngineeringTask) => void }) {
   const closeButton = useRef<HTMLButtonElement>(null);
   const onCloseRef = useRef(onClose); onCloseRef.current = onClose;
   useEffect(() => {
@@ -128,6 +150,7 @@ function TaskDetail({ task, tasks, changing, error, onClose, onStatus, onDepende
     {error && <div className="product-error" role="alert">{error}</div>}
     <dl className="task-properties"><div><dt>Status</dt><dd><select aria-label="Task status" disabled={changing} value={task.status} onChange={e => onStatus(e.target.value as EngineeringStatus)}>{boardColumns.map(column => <option key={column.status} value={column.status}>{column.label}</option>)}</select></dd></div>
       <div><dt>Priority</dt><dd className={`priority priority-${task.priority}`}>{task.priority}</dd></div><div><dt>Estimated effort</dt><dd>{hours(task.estimated_hours)}</dd></div><div><dt>Technical area</dt><dd>{task.technical_area}</dd></div></dl>
+    <TaskAssignmentEditor task={task} onChange={onTaskChange}/>
     <h3>Dependencies</h3>{task.dependencies.length ? <div className="task-dependencies">{task.dependencies.map(dependency => { const target = tasks.find(item => item.id === dependency.task_id); return <button className="dependency-link" key={dependency.task_id} onClick={() => onDependency(dependency.task_id)}>{target?.key} · {target?.title}<ArrowRight size={13} /></button>; })}</div> : <p className="muted small">No dependencies</p>}
     <h3>Acceptance criteria</h3><ul className="acceptance-list">{task.acceptance_criteria.map((criterion, index) => <li key={index}><span className="criterion-box" aria-hidden="true" />{criterion.description}</li>)}</ul>
     <p className="estimate-notice">Estimates describe rough effort. Acceptance criteria are requirements, not completed checks.</p>

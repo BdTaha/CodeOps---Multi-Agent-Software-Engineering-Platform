@@ -1,4 +1,4 @@
-export type View = 'projects' | 'planning' | 'board' | 'workspace' | 'review' | 'results' | 'metrics';
+export type View = 'projects' | 'planning' | 'board' | 'teams' | 'workspace' | 'review' | 'results' | 'metrics';
 export type Agent = 'supervisor' | 'repository_analyzer' | 'planner' | 'developer' | 'tester' | 'reviewer';
 export type Status = 'waiting' | 'running' | 'succeeded' | 'failed' | 'approval' | 'unavailable' | 'skipped';
 export interface Project { id: string; name: string; path: string; description: string; stack: string[] }
