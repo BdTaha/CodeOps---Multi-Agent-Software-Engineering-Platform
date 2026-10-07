@@ -4,7 +4,7 @@ from uuid import uuid4
 import pytest
 from fastapi.testclient import TestClient
 from autonomous_engineering.core.config import Settings
-from autonomous_engineering.domain.teams import SquadInput, MemberInput, ApplyAssignments
+from autonomous_engineering.domain.teams import SquadInput, ProjectMemberInput, ApplyAssignments
 from autonomous_engineering.infrastructure.task_store import TaskStore
 from autonomous_engineering.infrastructure.planning_store import PlanningStore
 from autonomous_engineering.infrastructure.team_store import TeamStore
@@ -26,15 +26,15 @@ def test_postgresql_team_persistence_capacity_and_atomic_suggestions(tmp_path):
         assert Worker(config,store,product_plan_provider=Provider()).run_once()
         teams = TeamStore(planning)
         squad = teams.save_squad(project['id'],SquadInput(name='Core',technical_areas=['Backend','Database']))
-        human = teams.save_member(project['id'],MemberInput(name='Fixture human',role='Engineer',member_type='human',squad_id=squad.id,
+        human = teams.save_member(project['id'],ProjectMemberInput(name='Fixture human',role='Engineer',member_type='human',squad_id=squad.id,
             weekly_capacity_hours=30,target_utilization=.8,skills=[dict(technical_area='Database',proficiency=5),dict(technical_area='Backend',proficiency=5)]))
-        ai = teams.save_member(project['id'],MemberInput(name='Fixture AI',role='Developer',member_type='ai',squad_id=squad.id,
+        ai = teams.save_member(project['id'],ProjectMemberInput(name='Fixture AI',role='Developer',member_type='ai',squad_id=squad.id,
             availability='available',max_concurrent_tasks=1,future_execution_role='developer',skills=[dict(technical_area='Backend',proficiency=4)]))
         proposal = teams.suggested_plan(project['id'])
         assert len(proposal['suggestions']) == 2
-        body = ApplyAssignments.model_validate(dict(project_revision=proposal['project_revision'],assignments=[{key:item[key] for key in ('task_id','assignee_id','revision')} for item in proposal['suggestions']]))
+        body = ApplyAssignments.model_validate(dict(project_revision=proposal['project_revision'],workspace_revision=proposal['workspace_revision'],assignments=[{key:item[key] for key in ('task_id','assignee_id','revision')} for item in proposal['suggestions']]))
         applied = teams.apply(project['id'],body)
-        assert sum(item.planned_load_hours for item in applied['capacities']) == 6
+        assert next(item for item in applied['capacities'] if str(item.member_id)==str(human['id'])).planned_load_hours == 6
         assert all(item.assignee_id for item in applied['tasks'])
         with TestClient(create_platform_app(config,store)) as client:
             first = applied['tasks'][0]
@@ -45,6 +45,6 @@ def test_postgresql_team_persistence_capacity_and_atomic_suggestions(tmp_path):
             restored = TeamStore(PlanningStore(reopened.engine)).snapshot(project['id'])
             assert len(restored['squads']) == 1 and len(restored['members']) == 2
             assert restored['tasks'][0].status == 'done'
-            assert sum(item.planned_load_hours for item in restored['capacities']) == 4
+            assert next(item for item in restored['capacities'] if str(item.member_id)==str(human['id'])).planned_load_hours == 4
         finally: reopened.close()
     finally: store.close()

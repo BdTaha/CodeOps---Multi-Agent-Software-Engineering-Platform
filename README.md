@@ -3,7 +3,7 @@
 A local engineering management and software delivery platform with a React workspace and a Python/FastAPI/LangGraph backend.
 Its default experience turns a project goal into persisted epics and engineering tasks, with estimates,
 dependencies, acceptance criteria and a manually managed board. See [product planning](docs/product-planning.md).
-Teams adds persisted squads, human/AI members, manually configured skills, planning capacity,
+Teams adds shared workspace identities, project memberships, squads, skills, global planning capacity,
 task ownership and explainable assignment suggestions. See [teams and capacity](docs/teams-and-capacity.md).
 It analyzes repositories, plans with local Ollama, applies approved changes to isolated snapshots,
 runs tests in Docker, reviews results and performs bounded repairs. SQL-backed tasks and independent
@@ -34,8 +34,10 @@ Run the API and worker in separate terminals:
 Open [CodeOps](http://127.0.0.1:8765/ui/). Select an existing project, enter a goal in Planning,
 and click **Plan with CodeOps**. Open Board to inspect tasks and change their statuses. Plans and
 status changes survive refresh; effort estimates are not guaranteed delivery times.
-Open **Teams** to create squads and members, then assign tasks from their Board details.
-Humans use weekly capacity with reserved effort; AI identities use availability and planned task slots.
+Open **Teams → Workspace members** to create identities once, then **Project teams** to create
+squads and add existing members. Assign tasks from their Board details.
+Human load is global across projects, with reserved effort and a project breakdown. AI queued
+ownership is separate from configured execution concurrency; runtime is not connected yet.
 **Recommend assignments** proposes a plan; only **Apply suggested assignments** saves it.
 Team management does not require Ollama or Docker and does not start coding execution.
 

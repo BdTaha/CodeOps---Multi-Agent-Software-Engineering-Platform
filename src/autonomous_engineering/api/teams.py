@@ -1,7 +1,7 @@
 """Team management and explicit assignment decisions, without execution."""
 from uuid import UUID
 from fastapi import APIRouter, HTTPException, Request
-from autonomous_engineering.domain.teams import SquadInput, SquadEdit, MemberInput, MemberEdit, AssignmentInput, ApplyAssignments
+from autonomous_engineering.domain.teams import SquadInput, SquadEdit, MemberInput, MemberEdit, ProjectMemberInput, MembershipInput, MembershipEdit, AssignmentInput, ApplyAssignments
 from autonomous_engineering.infrastructure.planning_store import PlanningConflict
 from autonomous_engineering.infrastructure.team_store import AssignmentWarnings, TeamNotFound
 
@@ -53,7 +53,7 @@ def team_router(store):
         return {'members': snapshot['members'], 'capacities': snapshot['capacities']}
 
     @router.post('/projects/{project_id}/members', status_code=201)
-    def create_member(project_id: UUID, body: MemberInput, request: Request):
+    def create_member(project_id: UUID, body: ProjectMemberInput, request: Request):
         origin(request); project(project_id)
         return call(lambda: store.save_member(project_id, body))
 
@@ -62,7 +62,47 @@ def team_router(store):
         origin(request)
         found = store.member(member_id)
         if found is None: raise HTTPException(404, 'Member not found.')
-        return call(lambda: store.save_member(found.project_id, body, member_id))
+        return call(lambda: store.save_workspace_member(body, member_id))
+
+    @router.get('/workspace/members')
+    @router.get('/workspace/capacity')
+    @router.get('/workspace/teams')
+    def workspace():
+        return store.workspace_snapshot()
+
+    @router.post('/workspace/members', status_code=201)
+    def create_workspace_member(body: MemberInput, request: Request):
+        origin(request)
+        return call(lambda: store.save_workspace_member(body))
+
+    @router.patch('/workspace/members/{member_id}')
+    def edit_workspace_member(member_id: UUID, body: MemberEdit, request: Request):
+        origin(request)
+        return call(lambda: store.save_workspace_member(body, member_id))
+
+    @router.get('/workspace/members/{member_id}/capacity')
+    def member_capacity(member_id: UUID):
+        snapshot = store.workspace_snapshot()
+        found = next((item for item in snapshot['capacities'] if item.member_id == member_id), None)
+        if found is None: raise HTTPException(404, 'Workspace member not found.')
+        return found
+
+    @router.get('/projects/{project_id}/memberships')
+    def project_memberships(project_id: UUID):
+        project(project_id)
+        return {'memberships': store.snapshot(project_id)['memberships']}
+
+    @router.post('/projects/{project_id}/memberships', status_code=201)
+    def join_project(project_id: UUID, body: MembershipInput, request: Request):
+        origin(request); project(project_id)
+        return call(lambda: store.save_membership(project_id, body))
+
+    @router.patch('/project-memberships/{membership_id}')
+    def edit_membership(membership_id: UUID, body: MembershipEdit, request: Request):
+        origin(request)
+        found = store.membership(membership_id)
+        if found is None: raise HTTPException(404, 'Project membership not found.')
+        return call(lambda: store.save_membership(found.project_id, body, membership_id))
 
     @router.post('/engineering-tasks/{task_id}/assignment')
     def assign(task_id: UUID, body: AssignmentInput, request: Request):

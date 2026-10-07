@@ -128,7 +128,7 @@ def test_bulk_suggestions_projected_load_explicit_apply_and_stale(team):
     assert len(suggestion['suggestions']) == 2
     assert len({item['assignee_id'] for item in suggestion['suggestions']}) == 2
     assert teams.snapshot(project['id']) == before
-    payload = dict(project_revision=suggestion['project_revision'], assignments=[{key:item[key] for key in ('task_id','assignee_id','revision')} for item in suggestion['suggestions']])
+    payload = dict(project_revision=suggestion['project_revision'], workspace_revision=suggestion['workspace_revision'], assignments=[{key:item[key] for key in ('task_id','assignee_id','revision')} for item in suggestion['suggestions']])
     result = client.post(f"/projects/{project['id']}/apply-assignment-recommendations", json=payload)
     assert result.status_code == 200, result.text
     assert all(task['assignee_id'] for task in result.json()['tasks'])
@@ -141,7 +141,7 @@ def test_bulk_application_rolls_back_when_combined_capacity_does_not_fit(team):
     core = squad(client, project)
     person = member(client, project, core, weekly_capacity_hours=5, target_utilization=1)
     snapshot = client.get(f"/projects/{project['id']}/teams").json()
-    payload = dict(project_revision=snapshot['project_revision'], assignments=[dict(task_id=t['id'], assignee_id=person['id'], revision=t['revision']) for t in snapshot['tasks']])
+    payload = dict(project_revision=snapshot['project_revision'], workspace_revision=snapshot['workspace_revision'], assignments=[dict(task_id=t['id'], assignee_id=person['id'], revision=t['revision']) for t in snapshot['tasks']])
     assert client.post(f"/projects/{project['id']}/apply-assignment-recommendations", json=payload).status_code == 409
     assert all(task.assignee_id is None and task.revision == 0 for task in teams.snapshot(project['id'])['tasks'])
 
@@ -163,27 +163,33 @@ def test_project_isolation_edits_and_squad_only_assignment(team):
     assert client.patch(f"/squads/{core['id']}", json=change).status_code == 409
     new_squad = squad(client, project, 'New')
     assigned = assign(client, assigned, person, override_warnings=True).json()['task']
-    edit = {key:value for key,value in person.items() if key not in ('id','project_id','created_at')}
-    edit['squad_id'] = new_squad['id']
+    edit = {key:value for key,value in person.items() if key not in ('id','project_id','squad_id','created_at')}
     edit['skills'] = [dict(technical_area='Database',proficiency=3)]
     assert client.patch(f"/members/{person['id']}", json=edit).status_code == 200
     assert client.patch(f"/members/{person['id']}", json=edit).status_code == 409
+    joined = teams.snapshot(project['id'])['memberships'][0]
+    response = client.patch(f'/project-memberships/{joined.id}', json=dict(squad_id=new_squad['id'],active=True,revision=joined.revision))
+    assert response.status_code == 200
     assert str(planning.task(task['id']).squad_id) == new_squad['id']
     assert planning.task(task['id']).revision == assigned['revision'] + 1
 
 
-def test_ai_slots_and_done_release(team):
+def test_ai_queue_and_done_release(team):
     client, project, planning, teams, store = team
     core = squad(client, project)
     ai = member(client, project, core, ai=True)
     first, second = tasks(client, project)
     first = assign(client, first, ai).json()['task']
     recommendations = client.get(f"/engineering-tasks/{second['id']}/recommendations").json()['recommendations']
-    assert not recommendations[0]['fits_capacity'] and recommendations[0]['remaining_task_slots'] == 0
+    assert recommendations[0]['fits_capacity'] and recommendations[0]['assigned_queue_depth'] == 1
+    queued = assign(client, second, ai, override_warnings=True)
+    assert queued.status_code == 200
+    capacity = teams.snapshot(project['id'])['capacities'][0]
+    assert capacity.assigned_queue_depth == 2 and capacity.max_concurrent_executions == 1
+    assert capacity.active_execution_count is None and not capacity.runtime_connected
     assert assign(client, second, ai).status_code == 409
     assert client.patch(f"/engineering-tasks/{first['id']}/status",json=dict(status='done',revision=first['revision'])).status_code == 200
-    assert client.get(f"/engineering-tasks/{second['id']}/recommendations").json()['recommendations'][0]['fits_capacity']
-    assert assign(client, second, ai).status_code == 200
+    assert teams.snapshot(project['id'])['capacities'][0].assigned_queue_depth == 1
 
 
 def test_status_or_member_edit_invalidates_suggestions(team):
@@ -193,7 +199,7 @@ def test_status_or_member_edit_invalidates_suggestions(team):
     proposal = client.get(f"/projects/{project['id']}/assignment-recommendations").json()
     task = tasks(client, project)[0]
     client.patch(f"/engineering-tasks/{task['id']}/status",json=dict(status='planned',revision=task['revision']))
-    payload = dict(project_revision=proposal['project_revision'],assignments=[{key:value for key,value in item.items() if key in ('task_id','assignee_id','revision')} for item in proposal['suggestions']])
+    payload = dict(project_revision=proposal['project_revision'], workspace_revision=proposal['workspace_revision'],assignments=[{key:value for key,value in item.items() if key in ('task_id','assignee_id','revision')} for item in proposal['suggestions']])
     assert client.post(f"/projects/{project['id']}/apply-assignment-recommendations",json=payload).status_code == 409
     assert all(task.assignee_id is None for task in teams.snapshot(project['id'])['tasks'])
 
@@ -244,7 +250,7 @@ def test_previous_plan_load_reopening_and_inactivation_are_retained(team):
     assert teams.snapshot(project['id'])['capacities'][0].planned_load_hours == 0
     client.patch(f"/engineering-tasks/{first['id']}/status",json=dict(status='planned',revision=first['revision']))
     assert teams.snapshot(project['id'])['capacities'][0].planned_load_hours == 2
-    edit = {key:value for key,value in person.items() if key not in ('id','project_id','created_at')}
+    edit = {key:value for key,value in person.items() if key not in ('id','project_id','squad_id','created_at')}
     edit['active'] = False
     assert client.patch(f"/members/{person['id']}",json=edit).status_code == 200
     assert teams.snapshot(project['id'])['capacities'][0].planned_load_hours == 2

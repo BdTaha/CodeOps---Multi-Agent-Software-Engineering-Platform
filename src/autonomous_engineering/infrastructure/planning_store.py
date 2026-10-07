@@ -52,8 +52,8 @@ class PlanningStore:
     def __init__(self, engine):
         self.engine = engine
         metadata.create_all(engine, tables=[goals, epics, engineering_tasks, dependencies, criteria])
-        from autonomous_engineering.infrastructure.team_tables import TEAM_TABLES
-        metadata.create_all(engine, tables=TEAM_TABLES)
+        from autonomous_engineering.infrastructure.team_migrations import initialize_team_schema
+        initialize_team_schema(engine)
 
     def project(self, project_id):
         with self.engine.connect() as db:

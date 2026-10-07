@@ -2,7 +2,7 @@
 from typing import Annotated, Literal, Self
 from uuid import UUID
 
-from pydantic import Field, model_validator
+from pydantic import AliasChoices, Field, model_validator
 
 from autonomous_engineering.domain.base import DomainModel, UtcTimestamp
 from autonomous_engineering.domain.product_planning import TechnicalArea, Title
@@ -40,13 +40,13 @@ class MemberInput(DomainModel):
     name: Title
     role: Title
     member_type: Literal['human', 'ai']
-    squad_id: UUID
     skills: tuple[MemberSkill, ...] = Field(min_length=1, max_length=6)
     active: bool = True
     weekly_capacity_hours: float | None = Field(default=None, ge=0, le=168, allow_inf_nan=False)
     target_utilization: float | None = Field(default=None, gt=0, le=1, allow_inf_nan=False)
     availability: Literal['available', 'busy', 'offline'] | None = None
-    max_concurrent_tasks: int | None = Field(default=None, ge=1, le=100)
+    max_concurrent_executions: int | None = Field(default=None, ge=1, le=100,
+        validation_alias=AliasChoices('max_concurrent_executions', 'max_concurrent_tasks'))
     future_execution_role: Literal['developer', 'tester', 'reviewer', 'general'] | None = None
 
     @model_validator(mode='after')
@@ -56,19 +56,18 @@ class MemberInput(DomainModel):
         if self.member_type == 'human':
             if self.weekly_capacity_hours is None or self.target_utilization is None:
                 raise ValueError('Humans require weekly capacity and target utilization')
-            if any(value is not None for value in (self.availability, self.max_concurrent_tasks, self.future_execution_role)):
+            if any(value is not None for value in (self.availability, self.max_concurrent_executions, self.future_execution_role)):
                 raise ValueError('Human members cannot use AI capacity fields')
         else:
             if self.weekly_capacity_hours is not None or self.target_utilization is not None:
                 raise ValueError('AI members do not use weekly human hours')
-            if any(value is None for value in (self.availability, self.max_concurrent_tasks, self.future_execution_role)):
+            if any(value is None for value in (self.availability, self.max_concurrent_executions, self.future_execution_role)):
                 raise ValueError('AI members require availability, concurrency and future execution role')
         return self
 
 
-class TeamMember(MemberInput):
+class WorkspaceMember(MemberInput):
     id: UUID
-    project_id: UUID
     created_at: UtcTimestamp
     revision: int = Field(ge=0)
 
@@ -77,14 +76,49 @@ class MemberEdit(MemberInput):
     revision: int = Field(ge=0)
 
 
+class ProjectMemberInput(MemberInput):
+    """Compatibility: create an identity and its first membership atomically."""
+    squad_id: UUID
+
+
+class MembershipInput(DomainModel):
+    member_id: UUID
+    squad_id: UUID
+    active: bool = True
+
+
+class MembershipEdit(DomainModel):
+    squad_id: UUID
+    active: bool
+    revision: int = Field(ge=0)
+
+
+class ProjectMembership(MembershipInput):
+    id: UUID
+    project_id: UUID
+    created_at: UtcTimestamp
+    revision: int = Field(ge=0)
+
+
+class ProjectCapacity(DomainModel):
+    project_id: UUID
+    project_name: str
+    planned_load_hours: float | None
+    assigned_task_count: int
+
+
 class MemberCapacity(DomainModel):
     member_id: UUID
-    planned_load_hours: float
+    planned_load_hours: float | None
     assigned_task_count: int
     assignable_capacity_hours: float | None
     reserved_capacity_hours: float | None
     remaining_capacity_hours: float | None
-    remaining_task_slots: int | None
+    assigned_queue_depth: int | None
+    max_concurrent_executions: int | None
+    active_execution_count: int | None = None
+    runtime_connected: bool = False
+    project_breakdown: tuple[ProjectCapacity, ...]
 
 
 class TaskAssignment(DomainModel):
@@ -115,6 +149,7 @@ class SuggestedAssignment(DomainModel):
 
 class ApplyAssignments(DomainModel):
     project_revision: int = Field(ge=0)
+    workspace_revision: int = Field(ge=0)
     assignments: tuple[SuggestedAssignment, ...] = Field(min_length=1, max_length=32)
 
     @model_validator(mode='after')
@@ -134,4 +169,4 @@ class AssignmentRecommendation(DomainModel):
     reasons: tuple[str, ...]
     warnings: tuple[str, ...]
     remaining_capacity_hours: float | None
-    remaining_task_slots: int | None
+    assigned_queue_depth: int | None

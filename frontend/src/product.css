@@ -107,6 +107,16 @@
 .squad-panel header p { font-size: 11px; margin: 6px 0; line-height: 1.7; }
 .team-member { padding: 18px 20px; border-bottom: 1px solid #303137; }
 .team-member:last-child { border: none; }
+.team-section-tabs { display: flex; gap: 18px; border-bottom: 1px solid #373940; margin-bottom: 18px; }
+.team-section-tabs button { padding: 12px 0; border: none; border-bottom: 2px solid transparent; background: transparent; color: #888d9d; font-size: 12px; }
+.team-section-tabs button[aria-selected="true"] { color: #e0e3ed; border-color: #9da5bb; }
+.workspace-member-card { border: 1px solid #363840; border-radius: 6px; margin-top: 16px; }
+.workspace-member-card:last-child { border: 1px solid #363840; }
+.project-member-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 16px 20px; border-bottom: 1px solid #35373e; }
+.project-member-row .member-identity { flex: 1; min-width: 160px; }
+.project-member-row .text-button { font-size: 10px; }
+.project-load-breakdown { margin-top: 14px; max-width: 520px; font-size: 11px; }
+.project-load-breakdown > div { display: flex; gap: 12px; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid #34373f; color: #b2b7c5; }
 .member-overview, .member-identity, .capacity-values { display: flex; align-items: center; gap: 10px; }
 .member-overview, .capacity-values { justify-content: space-between; }
 .member-identity { color: #bfc2cd; font-size: 12px; }
