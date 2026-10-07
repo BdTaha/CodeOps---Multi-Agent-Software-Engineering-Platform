@@ -16,6 +16,7 @@ export interface MemberCapacity {
   assignable_capacity_hours: number | null; reserved_capacity_hours: number | null;
   remaining_capacity_hours: number | null; assigned_queue_depth: number | null; max_concurrent_executions: number | null;
   active_execution_count: number | null; runtime_connected: boolean;
+  active_executions: {ai_member_id:string;engineering_task_id:string;execution_task_id:string;phase:string}[];
   project_breakdown: { project_id: string; project_name: string; planned_load_hours: number | null; assigned_task_count: number }[];
 }
 export interface WorkspaceSnapshot { members: TeamMember[]; memberships: ProjectMembership[]; tasks: EngineeringTask[]; capacities: MemberCapacity[]; projects: {id: string; name: string}[]; workspace_revision: number }

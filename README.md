@@ -37,7 +37,9 @@ status changes survive refresh; effort estimates are not guaranteed delivery tim
 Open **Teams → Workspace members** to create identities once, then **Project teams** to create
 squads and add existing members. Assign tasks from their Board details.
 Human load is global across projects, with reserved effort and a project breakdown. AI queued
-ownership is separate from configured execution concurrency; runtime is not connected yet.
+ownership is separate from real execution reservations. Use **Run with CodeOps** on an eligible
+AI developer task, approve its coding plan, then review and accept the result. Delivery remains
+explicit. See [the execution bridge](docs/task-execution-bridge.md).
 **Recommend assignments** proposes a plan; only **Apply suggested assignments** saves it.
 Team management does not require Ollama or Docker and does not start coding execution.
 

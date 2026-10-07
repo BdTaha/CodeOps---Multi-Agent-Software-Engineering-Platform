@@ -180,6 +180,11 @@ class PlanningStore:
         with self.engine.begin() as db:
             project_id = db.execute(select(engineering_tasks.c.project_id).where(engineering_tasks.c.id == str(task_id))).scalar_one()
             lock_project(db, project_id)
+            from autonomous_engineering.infrastructure.task_execution_tables import active_for_task, execution_links
+            if active_for_task(db, task_id):
+                raise PlanningConflict('An execution is active. Cancel it and wait for it to stop before changing task status.')
+            if db.execute(select(execution_links.c.execution_task_id).where(execution_links.c.engineering_task_id == str(task_id))).first():
+                raise PlanningConflict('Linked task status follows execution and human acceptance. Use its execution review actions.')
             result = db.execute(update(engineering_tasks).where(engineering_tasks.c.id == str(task_id),
                 engineering_tasks.c.revision == revision).values(status=status.value, revision=revision + 1))
             if result.rowcount != 1:

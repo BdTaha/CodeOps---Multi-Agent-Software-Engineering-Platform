@@ -118,6 +118,7 @@ class MemberCapacity(DomainModel):
     max_concurrent_executions: int | None
     active_execution_count: int | None = None
     runtime_connected: bool = False
+    active_executions: tuple[dict, ...] = ()
     project_breakdown: tuple[ProjectCapacity, ...]
 
 

@@ -1,3 +1,4 @@
+import TaskExecutionPanel from './TaskExecutionPanel';
 import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, CheckSquare, Clock3, Layers3, Loader2, Plus, X, Filter, Circle, CircleDashed, CircleDot, CircleCheck, Bot, UserRound } from 'lucide-react';
 import type { Workbench } from './useWorkbench';
@@ -45,16 +46,16 @@ export default function Planning({ lab, board = false }: { lab: Workbench; board
     return () => { alive = false; };
   }, [projectId]);
   useEffect(() => {
-    if (!pending) return;
+    if (!pending && !plan) return;
     let alive = true; let timer: ReturnType<typeof setTimeout>;
     async function poll() {
-      try { const result = await api.getPlan(projectId); if (alive) { setRecord(result); setError(null); } }
+      try { const [result, teams] = await Promise.all([api.getPlan(projectId),teamApi.getTeams(projectId)]); if (alive) { setRecord(result); setTeamData(teams); } }
       catch (failure) { if (alive) setError((failure as Error).message); }
-      if (alive) timer = setTimeout(poll, 1500);
+      if (alive) timer = setTimeout(poll, pending ? 1500 : 4000);
     }
     timer = setTimeout(poll, 1000);
     return () => { alive = false; clearTimeout(timer); };
-  }, [pending, projectId]);
+  }, [pending, projectId, !!plan]);
   function updateTask(updated: EngineeringTask) {
     if (current.current !== updated.project_id) return;
     setRecord(previous => previous?.plan ? { ...previous, plan: { ...previous.plan, tasks: previous.plan.tasks.map(item => item.id === updated.id ? updated : item) } } : previous);
@@ -112,7 +113,7 @@ export default function Planning({ lab, board = false }: { lab: Workbench; board
           return <section className={`board-column status-${column.status}`} key={column.status}><h2><StatusIcon className="board-column-icon" size={18} />{column.label}<span className="count">{tasks.length}</span></h2>
             <div className="board-cards">{tasks.map(task => <article className="engineering-card" key={task.id}>
               <button className="task-open" onClick={() => setSelected(task.id)} aria-label={`Open ${task.key}: ${task.title}`}><span className="task-card-heading"><span className="task-key">{task.key}</span><span className="task-estimate"><Clock3 size={12} />{hours(task.estimated_hours)}</span></span><h3>{task.title}</h3></button>
-              <div className="task-card-footer"><span className={`priority-signal signal-${task.priority}`} title={`${task.priority} priority`} aria-label={`${task.priority} priority`}><i /><i /><i /></span><span className={`area-tag area-${task.technical_area.toLowerCase()}`}><i />{task.technical_area}</span><label className="card-status"><span className="sr-only">Status for {task.key}</span><select aria-label={`Status for ${task.key}`} disabled={changing} value={task.status} onChange={e => void changeStatus(task, e.target.value as EngineeringStatus)}>{boardColumns.map(option => <option key={option.status} value={option.status}>{option.label}</option>)}</select></label></div>
+              <div className="task-card-footer"><span className={`priority-signal signal-${task.priority}`} title={`${task.priority} priority`} aria-label={`${task.priority} priority`}><i /><i /><i /></span><span className={`area-tag area-${task.technical_area.toLowerCase()}`}><i />{task.technical_area}</span><label className="card-status"><span className="sr-only">Status for {task.key}</span><select aria-label={`Status for ${task.key}`} disabled={changing || !!task.execution_run_id} value={task.status} onChange={e => void changeStatus(task, e.target.value as EngineeringStatus)}>{boardColumns.map(option => <option key={option.status} value={option.status}>{option.label}</option>)}</select></label></div>
               <div className="task-card-owner">{task.assignee_id ? <>{teamData?.members.find(member => member.id === task.assignee_id)?.member_type === 'ai' ? <Bot size={13}/> : <UserRound size={13}/>}<span>{teamData?.members.find(member => member.id === task.assignee_id)?.name ?? 'Loading assignee…'}</span></> : <><UserRound size={13}/><span>Unassigned</span></>}{task.squad_id && <small>{teamData?.squads.find(squad => squad.id === task.squad_id)?.name ?? 'Loading squad…'}</small>}</div>
             </article>)}{!tasks.length && <div className="board-empty">No tasks</div>}</div>
           </section>;
@@ -126,6 +127,7 @@ export default function Planning({ lab, board = false }: { lab: Workbench; board
 }
 
 export function TaskDetail({ task, tasks, changing, error, onClose, onStatus, onDependency, onTaskChange }: { task: EngineeringTask; tasks: EngineeringTask[]; changing: boolean; error: string | null; onClose: () => void; onStatus: (status: EngineeringStatus) => void; onDependency: (id: string) => void; onTaskChange: (task: EngineeringTask) => void }) {
+  const [executionActive,setExecutionActive]=useState(false);
   const closeButton = useRef<HTMLButtonElement>(null);
   const onCloseRef = useRef(onClose); onCloseRef.current = onClose;
   useEffect(() => {
@@ -134,7 +136,7 @@ export function TaskDetail({ task, tasks, changing, error, onClose, onStatus, on
     const key = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onCloseRef.current();
       if (event.key === 'Tab') {
-        const controls = closeButton.current?.closest('[role="dialog"]')?.querySelectorAll<HTMLElement>('button:not(:disabled),select:not(:disabled)');
+        const controls = closeButton.current?.closest('[role="dialog"]')?.querySelectorAll<HTMLElement>('button:not(:disabled),select:not(:disabled),input:not(:disabled),textarea:not(:disabled)');
         if (!controls?.length) return;
         const first = controls[0], last = controls[controls.length - 1];
         if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
@@ -148,9 +150,11 @@ export function TaskDetail({ task, tasks, changing, error, onClose, onStatus, on
     <header><span className="task-key">{task.key}</span><button ref={closeButton} className="text-button" aria-label="Close task detail" onClick={onClose}><X size={19} /></button></header>
     <h2 id="engineering-task-title">{task.title}</h2><p className="task-description">{task.description}</p>
     {error && <div className="product-error" role="alert">{error}</div>}
-    <dl className="task-properties"><div><dt>Status</dt><dd><select aria-label="Task status" disabled={changing} value={task.status} onChange={e => onStatus(e.target.value as EngineeringStatus)}>{boardColumns.map(column => <option key={column.status} value={column.status}>{column.label}</option>)}</select></dd></div>
+    <dl className="task-properties"><div><dt>Status</dt><dd><select aria-label="Task status" disabled={changing || !!task.execution_run_id} value={task.status} onChange={e => onStatus(e.target.value as EngineeringStatus)}>{boardColumns.map(column => <option key={column.status} value={column.status}>{column.label}</option>)}</select></dd></div>
       <div><dt>Priority</dt><dd className={`priority priority-${task.priority}`}>{task.priority}</dd></div><div><dt>Estimated effort</dt><dd>{hours(task.estimated_hours)}</dd></div><div><dt>Technical area</dt><dd>{task.technical_area}</dd></div></dl>
-    <TaskAssignmentEditor task={task} onChange={onTaskChange}/>
+    {!!task.execution_run_id && <p className="small muted">Linked task status follows its execution and human acceptance.</p>}
+    <TaskAssignmentEditor task={task} onChange={onTaskChange} locked={executionActive}/>
+    <TaskExecutionPanel task={task} onChange={onTaskChange} onActiveChange={setExecutionActive}/>
     <h3>Dependencies</h3>{task.dependencies.length ? <div className="task-dependencies">{task.dependencies.map(dependency => { const target = tasks.find(item => item.id === dependency.task_id); return <button className="dependency-link" key={dependency.task_id} onClick={() => onDependency(dependency.task_id)}>{target?.key} · {target?.title}<ArrowRight size={13} /></button>; })}</div> : <p className="muted small">No dependencies</p>}
     <h3>Acceptance criteria</h3><ul className="acceptance-list">{task.acceptance_criteria.map((criterion, index) => <li key={index}><span className="criterion-box" aria-hidden="true" />{criterion.description}</li>)}</ul>
     <p className="estimate-notice">Estimates describe rough effort. Acceptance criteria are requirements, not completed checks.</p>

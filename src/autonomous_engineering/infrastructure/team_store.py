@@ -60,9 +60,21 @@ class TeamStore:
         roster=[self._member(db,row) for row in db.execute(select(members).order_by(members.c.created_at,members.c.id)).mappings()]
         joined=[ProjectMembership.model_validate(row) for row in db.execute(select(memberships).order_by(memberships.c.created_at,memberships.c.id)).mappings()]
         tasks=[self.planning._task(db,row) for row in db.execute(select(engineering_tasks).order_by(engineering_tasks.c.created_at,engineering_tasks.c.id)).mappings()]
+        from autonomous_engineering.infrastructure.task_execution_tables import execution_links
+        from autonomous_engineering.infrastructure.task_store import tasks as execution_jobs
+        from autonomous_engineering.domain.task_executions import ACTIVE_EXECUTION_PHASES
+        running = [dict(row) for row in db.execute(select(execution_links.c.ai_member_id,
+            execution_links.c.engineering_task_id, execution_links.c.execution_task_id, execution_jobs.c.phase)
+            .join(execution_jobs, execution_jobs.c.id==execution_links.c.execution_task_id)
+            .where(execution_jobs.c.phase.in_(ACTIVE_EXECUTION_PHASES))).mappings()]
         names={row['id']:json.loads(row['data'])['name'] for row in db.execute(select(projects.c.id,projects.c.data)).mappings()}
         revision=db.execute(select(workspace_state.c.revision).where(workspace_state.c.id=='local')).scalar_one()
-        return dict(members=roster,memberships=joined,tasks=tasks,capacities=list(capacities(roster,tasks,names).values()),
+        loads = capacities(roster,tasks,names)
+        for member in roster:
+            if member.member_type=='ai':
+                active = [item for item in running if item['ai_member_id']==str(member.id)]
+                loads[member.id] = loads[member.id].model_copy(update={'active_execution_count':len(active), 'runtime_connected':True, 'active_executions':tuple(active)})
+        return dict(members=roster,memberships=joined,tasks=tasks,capacities=list(loads.values()),
             projects=[dict(id=identity,name=name) for identity,name in names.items()],workspace_revision=revision)
 
     def workspace_snapshot(self):
@@ -126,6 +138,9 @@ class TeamStore:
             affected=select(assignments.c.task_id).join(engineering_tasks,assignments.c.task_id==engineering_tasks.c.id).where(assignments.c.assignee_id==row['member_id'],engineering_tasks.c.project_id==str(project_id))
             ids=list(db.execute(affected).scalars())
             if ids:
+                from autonomous_engineering.infrastructure.task_execution_tables import active_for_task
+                if any(active_for_task(db, task_id) for task_id in ids):
+                    raise PlanningConflict('This membership owns an active execution. Cancel and wait before moving or deactivating it.')
                 db.execute(update(engineering_tasks).where(engineering_tasks.c.id.in_(ids)).values(revision=engineering_tasks.c.revision+1))
                 db.execute(update(assignments).where(assignments.c.task_id.in_(ids)).values(squad_id=str(body.squad_id)))
         else:
@@ -167,6 +182,9 @@ class TeamStore:
             snapshot=self._snapshot(db,task.project_id)
             task=next(item for item in snapshot['tasks'] if item.id==task.id)
             if task.revision!=(body.revision if body else revision): raise PlanningConflict('Task changed. Refresh and try again.')
+            from autonomous_engineering.infrastructure.task_execution_tables import active_for_task
+            if active_for_task(db, task_id):
+                raise PlanningConflict('This task has an active execution. Cancel it and wait for it to stop before changing ownership.')
             warnings=[]; squad_id=None; member_id=None
             if body:
                 squad_id,member_id=body.squad_id,body.assignee_id

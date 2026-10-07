@@ -1,4 +1,4 @@
-"""Goal planning and manual board status changes; no coding execution bridge."""
+"""Goal planning and board status changes; linked execution has explicit review gates."""
 from typing import Annotated
 from uuid import UUID
 

@@ -58,22 +58,18 @@ def task_router(config, store):
             raise HTTPException(404,'Task not found.')
         return result
     def source(path):
-        root = config.repository_root.resolve()
-        target = Path(path).resolve() if Path(path).is_absolute() else (root / path).resolve()
-        if not target.is_relative_to(root) or target.is_relative_to(config.workspace_root.resolve()):
-            raise HTTPException(400,'Repository must be within ASE_REPOSITORY_ROOT and outside workspace storage.')
+        from autonomous_engineering.application.execution_requests import repository_source
         try:
-            RepositoryReader(target)
+            return repository_source(config, path)
         except RepositoryError as exc:
             raise HTTPException(400,str(exc)) from exc
-        return target
 
     @router.post('/tasks',status_code=202)
     def create(body: NewTask, request: Request):
         origin(request)
         target = source(body.repository_path)
-        state = WorkflowState(task=TaskRecord(request=TaskRequest(repository_path=str(target),user_request=body.user_request)))
-        options = {'run_tests':False,'framework':config.test_framework,'test_backend':config.test_backend,'max_attempts':3}
+        from autonomous_engineering.application.execution_requests import execution_request
+        state, options = execution_request(config, str(target), body.user_request)
         project = store.register(str(target),{'name':target.name,'description':'Local repository','stack':[]})
         result = store.create(state,options)
         return {'id':result['id'],'phase':result['phase'],'snapshot':result['snapshot'],'project':project}
@@ -127,6 +123,19 @@ def task_router(config, store):
         item = get(task_id)
         if item['phase'] not in {'failed','cancelled'}:
             raise HTTPException(409,'Only stopped tasks can be retried as a new run.')
+        if item.get('engineering_origin'):
+            from autonomous_engineering.infrastructure.planning_store import PlanningConflict
+            bridge = request.app.state.task_execution_store
+            origin_id = item['engineering_origin']['engineering_task_id']
+            current = bridge.snapshot(origin_id)
+            if current['current']['execution_task_id'] != str(task_id):
+                raise HTTPException(409,'Retry the latest execution from its EngineeringTask.')
+            try:
+                result = bridge.start(origin_id,current['task'].revision)
+            except (PlanningConflict, RepositoryError, ValueError) as exc:
+                raise HTTPException(409,str(exc)) from exc
+            project = bridge.teams.planning.project(result['task'].project_id)
+            return {'id':result['execution']['id'],'project':project}
         req = item['snapshot']['task']['request']
         return create(NewTask(**req),request)
 
@@ -206,6 +215,7 @@ def task_router(config, store):
         origin(request)
         item = get(task_id)
         state = WorkflowState.model_validate(item['snapshot'])
+        from autonomous_engineering.infrastructure.planning_store import PlanningConflict
         try:
             if body.receipt != receipt(state,config.workspace_root):
                 raise RepositoryError('STALE_DELIVERY','Delivery receipt is stale.')
@@ -227,7 +237,7 @@ def task_router(config, store):
             except Exception:
                 store.delivery(task_id,{**previous,'last_error':'Delivery failed; inspect local/remote artifacts before retrying.'})
                 raise
-        except RepositoryError as exc:
+        except (RepositoryError, PlanningConflict) as exc:
             raise HTTPException(409,str(exc)) from exc
 
     @router.get('/tasks/{task_id}/archive')

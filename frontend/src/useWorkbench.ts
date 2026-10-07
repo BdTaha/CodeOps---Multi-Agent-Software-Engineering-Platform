@@ -134,12 +134,23 @@ export default function useWorkbench() {
     if (activeTask && !preview) { try { const evidence = await api.prepareDelivery(activeTask); setDelivery({ action, evidence }); } catch (failure) { setError((failure as Error).message); } }
   }
   async function confirmDelivery() {
+    // The task-centric bridge shares this existing delivery confirmation flow.
     if (!delivery || !activeTask) return;
     try { const result = await api.deliver(activeTask, delivery.evidence.receipt, delivery.action); setDeliveryResult(result);
       if (delivery.action === 'export') { const link = document.createElement('a'); link.href = `/tasks/${activeTask}/archive`; link.download = ''; link.click(); }
       setDelivery(null);
     } catch (failure) { setError((failure as Error).message); }
   }
-  return { view, setView, preview, setPreview, projects, project, setProject, currentProject, displayed, currentFiles, selectedAgent, setSelectedAgent, runningAgent, agentStatus, busy, error, setError, connected, approvalId, approve, runTests, setRunTests, testBackend, setTestBackend, framework, setFramework, maxAttempts, setMaxAttempts, taskModal, setTaskModal, start, register, importRepository, openProject, inspectRun, sessionRuns, currentJob, metrics, system, cancel, retry, prepareDelivery, delivery, setDelivery, confirmDelivery, deliveryResult, previewIndex, replay: () => { setPreviewIndex(0); setView('workspace'); } };
+  async function openExecution(id: string, nextView: View = 'workspace') {
+    try { const item = await api.job(id); setPreview(false); setPreviewIndex(null); setFilePaths([]); setDeliveryResult(null); setActiveTask(id); accept(item);
+      const nextProject=projects.find(p=>p.path===item.snapshot.task.request.repository_path); if(nextProject)setProject(nextProject);
+      setView(nextView);
+    } catch(failure) {setError((failure as Error).message);}
+  }
+  async function prepareExecutionDelivery(id: string, action: 'export'|'apply'|'github') {
+    try {const [item,evidence]=await Promise.all([api.job(id),api.prepareDelivery(id)]);setPreview(false);setActiveTask(id);accept(item);setDelivery({action,evidence});}
+    catch(failure){setError((failure as Error).message);}
+  }
+  return { openExecution, prepareExecutionDelivery, view, setView, preview, setPreview, projects, project, setProject, currentProject, displayed, currentFiles, selectedAgent, setSelectedAgent, runningAgent, agentStatus, busy, error, setError, connected, approvalId, approve, runTests, setRunTests, testBackend, setTestBackend, framework, setFramework, maxAttempts, setMaxAttempts, taskModal, setTaskModal, start, register, importRepository, openProject, inspectRun, sessionRuns, currentJob, metrics, system, cancel, retry, prepareDelivery, delivery, setDelivery, confirmDelivery, deliveryResult, previewIndex, replay: () => { setPreviewIndex(0); setView('workspace'); } };
 }
 export type Workbench = ReturnType<typeof useWorkbench>;

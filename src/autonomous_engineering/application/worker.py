@@ -24,13 +24,14 @@ logger = logging.getLogger(__name__)
 
 
 class Worker:
-    def __init__(self, settings, store=None, development_provider=None, review_provider=None, product_plan_provider=None):
+    def __init__(self, settings, store=None, development_provider=None, review_provider=None, product_plan_provider=None, coding_plan_provider=None):
         self.config = settings
         self.store = store or TaskStore(settings.database_url.get_secret_value())
         self.owner = str(uuid4())
         self.development_provider = development_provider
         self.review_provider = review_provider
         self.product_plan_provider = product_plan_provider
+        self.coding_plan_provider = coding_plan_provider
         self.planning_store = PlanningStore(self.store.engine)
 
     def run_once(self):
@@ -109,7 +110,7 @@ class Worker:
 
     async def plan(self, task_id, initial):
         final = initial
-        async for event in stream_workflow(initial, settings=self.config):
+        async for event in stream_workflow(initial, settings=self.config, planner_provider=self.coding_plan_provider):
             if event.kind == 'node_started':
                 self.store.checkpoint(task_id, self.owner, node=event.node, kind='node_started')
             if event.snapshot is not None:

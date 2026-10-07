@@ -15,6 +15,10 @@ def initialize_team_schema(engine):
             db.exec_driver_sql('SELECT pg_advisory_xact_lock(50133677)')
         for table in TEAM_TABLES:
             table.create(db, checkfirst=True)
+        # Additive bridge schema shares the startup migration fence, including
+        # databases where the earlier workspace migration already completed.
+        from autonomous_engineering.infrastructure.task_execution_tables import execution_links
+        execution_links.create(db, checkfirst=True)
         db.execute(_insert(db)(workspace_state).values(id='local', revision=0).on_conflict_do_nothing(index_elements=['id']))
         if db.execute(select(migrations.c.version).where(migrations.c.version == VERSION)).first():
             return

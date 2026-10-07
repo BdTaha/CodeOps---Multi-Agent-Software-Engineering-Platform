@@ -186,7 +186,7 @@ def test_ai_queue_and_done_release(team):
     assert queued.status_code == 200
     capacity = teams.snapshot(project['id'])['capacities'][0]
     assert capacity.assigned_queue_depth == 2 and capacity.max_concurrent_executions == 1
-    assert capacity.active_execution_count is None and not capacity.runtime_connected
+    assert capacity.active_execution_count == 0 and capacity.runtime_connected
     assert assign(client, second, ai).status_code == 409
     assert client.patch(f"/engineering-tasks/{first['id']}/status",json=dict(status='done',revision=first['revision'])).status_code == 200
     assert teams.snapshot(project['id'])['capacities'][0].assigned_queue_depth == 1

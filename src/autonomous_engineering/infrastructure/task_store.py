@@ -53,10 +53,14 @@ class TaskStore:
     def create(self, state: WorkflowState, options: dict):
         task_id = str(state.task.task_id)
         with self.engine.begin() as db:
-            db.execute(insert(tasks).values(id=task_id, phase="queued_planning", snapshot=state.model_dump_json(),
-                options=json.dumps(options), created=time.time(), cancel=0, revision=0, delivery="{}"))
-            self.event(db, task_id, "task_created", None, {"run_id": str(state.run_id)})
+            self.create_in_transaction(db, state, options)
         return self.get(task_id)
+
+    def create_in_transaction(self, db, state, options):
+        task_id = str(state.task.task_id)
+        db.execute(insert(tasks).values(id=task_id, phase="queued_planning", snapshot=state.model_dump_json(),
+            options=json.dumps(options), created=time.time(), cancel=0, revision=0, delivery="{}"))
+        self.event(db, task_id, "task_created", None, {"run_id": str(state.run_id)})
 
     @staticmethod
     def event(db, task_id, kind, node, data):
@@ -64,7 +68,12 @@ class TaskStore:
 
     def get(self, task_id):
         with self.engine.connect() as db:
-            return self.unpack(db.execute(select(tasks).where(tasks.c.id == str(task_id))).mappings().first())
+            result = self.unpack(db.execute(select(tasks).where(tasks.c.id == str(task_id))).mappings().first())
+            if result:
+                from autonomous_engineering.infrastructure.task_execution_tables import runtime_link
+                link = runtime_link(db, task_id)
+                result['engineering_origin'] = dict(link) if link else None
+            return result
 
     def list(self, limit=100):
         with self.engine.connect() as db:
@@ -103,11 +112,14 @@ class TaskStore:
         if phase is not None:
             values.update(phase=phase, owner=None, lease=None, approval=approval, node=None)
         with self.engine.begin() as db:
+            from autonomous_engineering.infrastructure.task_execution_tables import fence_execution, synchronize_completion
+            link = fence_execution(db, task_id)
             result = db.execute(update(tasks).where(tasks.c.id == str(task_id), tasks.c.owner == owner,
                 tasks.c.lease > time.time(), tasks.c.cancel == 0).values(**values))
             if result.rowcount != 1:
                 raise LostLease("Task lease ended or cancellation was requested.")
             self.event(db, str(task_id), kind, node, {"phase": phase, "execution_count": len(state.executions) if state else None})
+            synchronize_completion(db, link, phase)
 
     def approve(self, task_id, receipt, options):
         with self.engine.begin() as db:
@@ -137,6 +149,8 @@ class TaskStore:
             rows = db.execute(select(tasks).where(tasks.c.cancel == 1, tasks.c.phase.not_in(["cancelled", "succeeded", "failed"]))).mappings().all()
             rows += db.execute(select(tasks).where(tasks.c.phase.in_(["planning", "development"]), tasks.c.lease < time.time(), tasks.c.cancel == 0)).mappings().all()
             for row in rows:
+                from autonomous_engineering.infrastructure.task_execution_tables import fence_execution, synchronize_completion
+                link = fence_execution(db, row['id'])
                 cancelled = bool(row["cancel"])
                 state = WorkflowState.model_validate_json(row["snapshot"])
                 status = TaskStatus.CANCELLED if cancelled else TaskStatus.FAILED
@@ -153,6 +167,7 @@ class TaskStore:
                     phase=status.value, snapshot=state.model_dump_json(), owner=None, lease=None, node=None, revision=row["revision"] + 1))
                 if result.rowcount == 1:
                     self.event(db, row["id"], status.value, row["node"], {})
+                    synchronize_completion(db, link, status.value)
 
     def register(self, path, data):
         try:
@@ -189,6 +204,9 @@ class TaskStore:
 
     def lock_delivery(self, task_id, previous):
         with self.engine.begin() as db:
+            from autonomous_engineering.infrastructure.task_execution_tables import fence_execution, delivery_allowed
+            fence_execution(db, task_id)
+            delivery_allowed(db, task_id)
             result = db.execute(update(tasks).where(tasks.c.id == str(task_id), tasks.c.delivery == json.dumps(previous)).values(
                 delivery=json.dumps({**previous, "publishing": True})))
             return result.rowcount == 1

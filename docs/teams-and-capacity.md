@@ -2,7 +2,9 @@
 
 CodeOps creates goals, plans, epics and EngineeringTasks. Teams assigns ownership
 to those tasks. The autonomous coding system remains a separate execution layer;
-assigning a task does not create an ExecutionRun, start Ollama, or deliver a PR.
+assigning a task does not create an execution, start Ollama, or deliver a PR.
+The [execution bridge](task-execution-bridge.md) now provides an explicit Run with
+CodeOps action, coding-plan approval and final human result acceptance.
 
 ## Architecture
 
@@ -57,10 +59,12 @@ planning information, and never consumes `max_concurrent_executions`.
 An AI identity configured for one concurrent execution can own three or more
 queued tasks. AI capacity has no weekly-hour budget.
 
-`active_execution_count` is null and `runtime_connected` is false. The UI says
-runtime execution is not connected. Neither zero executions nor runtime
-utilization is inferred from assigned tasks. `future_execution_role` and maximum
-concurrent executions are configuration for the future bridge.
+`active_execution_count` now counts real linked runtime reservations and
+`runtime_connected` is true for AI workspace identities. Queued planning, planning,
+coding-plan approval waiting, queued development and development reserve slots.
+Terminal runs and final human result review do not. The UI shows actual counts
+and current runs. `max_concurrent_executions` controls explicit start, while
+assignment ownership remains independent. See the bridge guide for precise states.
 
 Manual assignments warn about inactive identities, busy/offline AI, missing skill,
 squad area mismatch and unfinished dependencies. These warnings can be explicitly
@@ -160,7 +164,7 @@ open Project teams, create a squad and choose Add existing member. Repeat in
 another project with the same identity. Assign from Board task details or review
 and explicitly apply suggestions. Workspace cards show global load, reserved
 capacity, project breakdown and outstanding assigned tasks; AI cards show queue,
-configured concurrency and unavailable runtime. Refresh preserves everything.
+configured concurrency and real runtime reservations. Refresh preserves everything.
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest
@@ -194,9 +198,9 @@ Modified under `frontend/src/`: `App.tsx`, `Teams.tsx`, `TaskAssignmentEditor.ts
 One local workspace, one primary squad per project membership, one primary task
 assignee, manually configured skills/availability and greedy suggestions remain.
 There are no dates, calendars, employee performance analytics, identity merge UI,
-runtime telemetry or automatic dispatch. Existing autonomous engineering and
+automatic dispatch or hosted previews. Existing autonomous engineering and
 GitHub delivery continue through their existing workflow.
 
-The next phase is an explicit EngineeringTask → ExecutionRun bridge with ownership
-traceability, real execution counters and the existing approval/review gates.
-That bridge is intentionally not implemented in this correction.
+The explicit EngineeringTask execution bridge is now available; its architecture,
+review gates, test instructions and next-phase limits are documented in
+[task-execution-bridge.md](task-execution-bridge.md).

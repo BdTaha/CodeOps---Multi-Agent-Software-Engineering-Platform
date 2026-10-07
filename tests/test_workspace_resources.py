@@ -178,7 +178,7 @@ def test_ai_queue_is_global_soft_balance_not_runtime_capacity(shared):
     assert assign(client,third,first).status_code==200
     cap=client.get(f"/workspace/members/{first['id']}/capacity").json()
     assert cap['assigned_queue_depth']==3 and cap['max_concurrent_executions']==1
-    assert cap['active_execution_count'] is None and not cap['runtime_connected']
+    assert cap['active_execution_count']==0 and cap['runtime_connected']
     assert cap['planned_load_hours'] is None and cap['remaining_capacity_hours'] is None
     assert sorted(item['assigned_task_count'] for item in cap['project_breakdown'])==[1,2]
     first=edit_resource(client,first,availability='offline')

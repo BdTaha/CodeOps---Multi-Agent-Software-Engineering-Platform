@@ -211,3 +211,10 @@
   .board-filters { padding: 16px; }
   .product-shell .board-column { height: calc(100vh - 205px); }
 }
+.task-execution-panel{margin:24px 0;padding:20px;border:1px solid #35363a;border-radius:8px;background:#202124}
+.task-execution-panel h3{margin-top:0}.task-execution-panel h4{margin:18px 0 10px}.execution-phase{display:block;margin:14px 0}.execution-blockers{padding:12px;background:#29292c;border-radius:6px;margin:12px 0}
+.coding-plan-review small,.execution-timeline small{display:block;color:#96979d;margin-top:5px}.execution-test-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:16px 0}.execution-test-options label,.execution-review-actions label{display:flex;flex-direction:column;gap:7px;font-size:12px}
+.execution-test-options select,.execution-test-options input,.execution-review-actions textarea{width:100%;box-sizing:border-box;background:#292a2d;color:#e6e6e8;border:1px solid #3b3c40;border-radius:5px;padding:9px}.execution-review-actions textarea{min-height:90px;resize:vertical}.execution-review-actions .row{margin-top:12px;flex-wrap:wrap}
+.execution-review-tabs,.execution-delivery-actions,.execution-details-actions{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0}.execution-review-tabs button{background:transparent;border:0;border-bottom:2px solid transparent;color:#9d9ea4;padding:8px;cursor:pointer}.execution-review-tabs button[aria-selected=true]{color:#ededee;border-bottom-color:#ababbb}.execution-diff{white-space:pre-wrap;overflow-wrap:anywhere;max-height:350px;overflow:auto;background:#18191b;padding:14px;font-size:11px;border-radius:6px}
+.execution-timeline,.execution-history{padding:12px 0;border-top:1px solid #35363a;margin-top:15px}.execution-timeline summary,.execution-history summary{cursor:pointer;font-size:12px;color:#b7b7bd}.execution-history>div{padding:12px 0;font-size:12px;display:flex;gap:12px;flex-wrap:wrap}.execution-history p{width:100%}.human-result-review{border-top:1px solid #35363a;margin-top:18px}.task-detail .task-execution-panel li{line-height:1.7}
+@media(max-width:700px){.execution-test-options{grid-template-columns:1fr}.task-execution-panel{padding:14px}}
