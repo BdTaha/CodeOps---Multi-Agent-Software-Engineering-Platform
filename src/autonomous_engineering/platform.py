@@ -8,6 +8,8 @@ from autonomous_engineering.core.config import Settings
 from autonomous_engineering.main import create_app
 from autonomous_engineering.api.tasks import task_router
 from autonomous_engineering.infrastructure.task_store import TaskStore
+from autonomous_engineering.infrastructure.planning_store import PlanningStore
+from autonomous_engineering.api.planning import planning_router
 
 
 def create_platform_app(settings=None, store=None):
@@ -26,6 +28,8 @@ def create_platform_app(settings=None, store=None):
                 application.state.task_store.close()
     app.router.lifespan_context = lifespan
     app.include_router(task_router(config,app.state.task_store))
+    app.state.planning_store = PlanningStore(app.state.task_store.engine)
+    app.include_router(planning_router(app.state.planning_store))
     frontend = Path(__file__).resolve().parents[2] / 'frontend' / 'dist'
     if frontend.is_dir():
         app.mount('/ui',StaticFiles(directory=frontend,html=True),name='frontend')

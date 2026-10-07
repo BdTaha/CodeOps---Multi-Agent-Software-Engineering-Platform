@@ -33,6 +33,13 @@ class DevelopmentProvider(Protocol):
     def generate(self, context: DevelopmentContext) -> DevelopmentProposal: ...
 
 
+class NoDevelopmentChanges(RuntimeError):
+    """A repair response made no edits; retain evidence and recheck its claims."""
+    def __init__(self, explanation: str):
+        super().__init__('Repair proposed no file changes; existing evidence was retained for review.')
+        self.explanation = explanation
+
+
 def workspace_reader(state: WorkflowState, storage: Path) -> RepositoryReader:
     if not state.workspace_path:
         raise RepositoryError("WORKSPACE_DENIED", "Development requires a managed snapshot.")
@@ -89,11 +96,20 @@ class Developer:
                 tests=state.tests, review=state.review, attempt=state.development_attempts + 1)))
         except ValidationError as exc:
             raise RepositoryError("INVALID_DEVELOPMENT", "Provider returned invalid structured file edits.") from exc
+        except NoDevelopmentChanges:
+            if approval_identity(state, storage) != approved_id:
+                raise RepositoryError('STALE_APPROVAL','Snapshot changed during generation; review was refused.')
+            raise
         if approval_identity(state, storage) != approved_id:
             raise RepositoryError("STALE_APPROVAL", "Snapshot changed during generation; no generated edits were applied.")
         if self.write_guard is not None:
             self.write_guard()
-        diff, changes = apply_edits(reader, proposal, files)
+        try:
+            diff, changes = apply_edits(reader, proposal, files)
+        except RepositoryError as exc:
+            if state.development is not None and exc.code == 'INVALID_EDIT' and str(exc) == 'Generated edits do not change any file.':
+                raise NoDevelopmentChanges(proposal.explanation) from exc
+            raise
         content_hashes = {change.path: hashlib.sha256(reader.read_text(change.path).encode("utf-8")).hexdigest()
                           if change.kind != "deleted" else None for change in changes}
         return DevelopmentArtifact(approval_id=approved_id, approved_at=approved_at, explanation=proposal.explanation, diff=diff,

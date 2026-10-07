@@ -63,6 +63,7 @@ class DevelopmentArtifact(DomainModel):
     diff: str
     content_hashes: dict[RepositoryFile, str | None] = Field(default_factory=dict)
     original_files: dict[RepositoryFile, str | None] = Field(default_factory=dict)
+    repair_note: Summary | None = None
     limitations: tuple[Summary, ...] = (
         "Changes exist only in the managed text snapshot; source repository is unchanged.",
         "Development alone does not establish passing tests or review approval; consult the recorded downstream evidence.",

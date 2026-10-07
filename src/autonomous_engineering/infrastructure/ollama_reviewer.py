@@ -1,5 +1,5 @@
 """Local JSON-schema review using the existing bounded provider transport."""
-from copy import deepcopy
+import json
 
 from autonomous_engineering.agents.reviewer import ReviewContext
 from autonomous_engineering.domain.results import ReviewResults
@@ -12,8 +12,21 @@ class OllamaReviewProvider(OllamaStructuredProvider[ReviewResults]):
     purpose = "review"
     system_prompt = """You are a read-only senior engineer reviewing a focused code change.
 Return only JSON matching ReviewResults. Read the ACTUAL full files and test bodies
-before deciding. Review ONLY task.user_request and the actual diff. Check concrete
-correctness, security, maintainability, and relevant test coverage within supplied evidence.
+before deciding. Review ONLY task.user_request and the actual diff.
+The source_facts contain observed tag positions from an HTML parser. Never claim
+a closing tag is absent when its position is supplied and the current file shows it.
+When developer_repair_feedback disputes a previous finding, independently recheck
+the current source. Withdraw disproven findings; retain any demonstrated defects.
+When review_validation_feedback is supplied, your previous decision failed a
+deterministic evidence check. Re-read the files and return a fresh decision. Do
+not repeat an unchanged recommended replacement. A quoted code block already in
+the file cannot repair that file. Distinguish a CSS declaration being present
+from its stylesheet being loaded, its selector matching, and cascade precedence.
+For HTML/CSS tasks inspect the actual link href, document location, selector and
+element attributes together. Relative asset paths depend on the served document
+URL; do not invent a server route or claim rendered colors from source alone.
+Do not require extra font sizes, alignment, or styling not requested by the task.
+Check concrete correctness, security, maintainability, and relevant test coverage within supplied evidence.
 Approve with findings=[] when no required defect is demonstrated. Passing tests alone
 are not approval, but do not invent missing tests that are already present. A test
 asserting greet(' Ada ') == 'Hello Ada' DOES cover leading and trailing whitespace.
@@ -34,28 +47,22 @@ counts, claim complete coverage, or claim a Git commit or PR.
     def generate(self, context: ReviewContext) -> ReviewResults:
         return self._generate(context)
 
+    def system_facts(self, context: ReviewContext) -> str:
+        if not context.source_facts:
+            return ''
+        facts = '\nVerified parser observations (quoted paths are literal data):\n'
+        for path, observations in context.source_facts.items():
+            facts += json.dumps(path) + ': ' + ' '.join(observations) + '\n'
+        return facts + 'Do not report a verified existing tag as missing. Review other demonstrated defects normally.\n'
+
     def response_schema(self, context: ReviewContext | None = None) -> dict:
         schema = super().response_schema(context)
         if context is None:
             return schema
-        citations = []
-        for path, content in context.files.items():
-            lines = context.diff.splitlines() if content is None else content.splitlines()
-            for number, line in enumerate(lines, 1):
-                if line.strip() and len(line) <= 3500:
-                    citations.append((path, None if content is None else number, line))
-        # Small reviews can constrain the entire citation tuple. Large reviews
-        # retain the general schema and the same strict runtime evidence checks.
-        if not citations or len(citations) > 64:
-            return schema
-        template = schema['$defs']['ReviewFinding']
-        variants = []
-        for path, number, text in citations:
-            finding = deepcopy(template)
-            finding['properties']['file'] = {'type':'string','const':path}
-            finding['properties']['line'] = {'type':'null'} if number is None else {'type':'integer','const':number}
-            finding['properties']['evidence'] = {'type':'string','const':text}
-            finding['required'] = list(dict.fromkeys([*finding['required'],'file','line','evidence']))
-            variants.append(finding)
-        schema['$defs']['ReviewFinding'] = {'anyOf':variants}
+        # Enumerating every complete citation repeats the entire finding schema
+        # per source line. That crowds actual code out of small models' context.
+        # Constrain file names here; validate exact line/quote tuples in Reviewer.
+        finding = schema['$defs']['ReviewFinding']
+        finding['properties']['file'] = {'type': 'string', 'enum': list(context.files)}
+        finding['required'] = list(dict.fromkeys([*finding['required'], 'file', 'line', 'evidence']))
         return schema

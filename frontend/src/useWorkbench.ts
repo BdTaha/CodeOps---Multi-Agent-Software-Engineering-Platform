@@ -10,9 +10,12 @@ const initialProjects: Project[] = [
 const operationAgents = new Map(agents.map(agent => [agent.operation, agent.id]));
 operationAgents.set('route_validation', 'supervisor');
 export default function useWorkbench() {
-  const [view, setView] = useState<View>('projects');
-  const [preview, setPreview] = useState(true);
-  const [projects, setProjects] = useState<Project[]>(initialProjects);
+  const [view, setView] = useState<View>(() => {
+    const saved = localStorage.getItem('codeops-view');
+    return ['projects', 'planning', 'board', 'workspace', 'review', 'results', 'metrics'].includes(saved ?? '') ? saved as View : 'projects';
+  });
+  const [preview, setPreview] = useState(false);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [project, setProject] = useState<Project>(initialProjects[1]);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [filePaths, setFilePaths] = useState<string[]>([]);
@@ -59,14 +62,16 @@ export default function useWorkbench() {
         let saved = registered.projects;
         if (!saved.length) { saved = []; for (const p of initialProjects) saved.push(await api.register(p.name, p.path)); }
         if (!alive) return;
-        setProjects(saved); setProject(saved.find(p => p.name === 'developer-demo') ?? saved[0] ?? initialProjects[1]);
+        const selected = saved.find(p => p.id === localStorage.getItem('codeops-project'));
+        setProjects(saved); setProject(selected ?? saved.find(p => p.name === 'developer-demo') ?? saved[0] ?? initialProjects[1]);
         setSessionRuns(history.tasks.map(item => item.snapshot)); setMetrics(stats); setSystem(service); setConnected(true);
         const remembered = localStorage.getItem('engineering-active-task');
         const item = history.tasks.find(t => t.id === remembered);
-        if (item) { setProject(saved.find(p => p.path === item.snapshot.task.request.repository_path) ?? saved[0]); setPreview(false); setActiveTask(item.id); }
+        if (item) { if (!selected) setProject(saved.find(p => p.path === item.snapshot.task.request.repository_path) ?? saved[0]); setPreview(false); setActiveTask(item.id); }
       } catch (failure) { if (alive) { setConnected(false); setError((failure as Error).message); } }
     } void load(); return () => { alive = false; };
   }, []);
+  useEffect(() => { localStorage.setItem('codeops-view', view); }, [view]);
   useEffect(() => {
     if (!activeTask) return;
     latestTask.current = activeTask; localStorage.setItem('engineering-active-task', activeTask);
@@ -111,14 +116,14 @@ export default function useWorkbench() {
     catch (failure) { setError((failure as Error).message); }
   }
   async function register(name: string, path: string) {
-    try { const added = await api.register(name, path); setProjects(current => [added, ...current.filter(p => p.path !== added.path)]); setProject(added); setPreview(false); }
-    catch (failure) { setError((failure as Error).message); }
+    try { const added = await api.register(name, path); setProjects(current => [added, ...current.filter(p => p.path !== added.path)]); setProject(added); setPreview(false); return added; }
+    catch (failure) { setError((failure as Error).message); return null; }
   }
   async function importRepository(repository: string, branch?: string) {
     try { const added = await api.importRepository(repository, branch); setProjects(current => [added, ...current]); setProject(added); setPreview(false); }
     catch (failure) { setError((failure as Error).message); }
   }
-  function openProject(next: Project) { setProject(next); setPreview(next.id === 'preview'); setView('workspace'); }
+  function openProject(next: Project) { setProject(next); setPreview(next.id === 'preview'); localStorage.setItem('codeops-project', next.id); setView(next.id === 'preview' ? 'workspace' : 'planning'); }
   function inspectRun(run: Snapshot) {
     if (!preview) { setProject(projects.find(p => p.path === run.task.request.repository_path) ?? project); setActiveTask(run.task.task_id); }
     setView('results');

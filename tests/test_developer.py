@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 
 from autonomous_engineering.agents.developer import (
     Developer, DevelopmentProposal, DevelopmentContext, approval_identity,
+    NoDevelopmentChanges,
 )
 from autonomous_engineering.agents.planner import PlanningError
 from autonomous_engineering.core.config import Settings
@@ -247,20 +248,24 @@ def test_developer_ollama_schema_and_full_file_context(planned, ollama_server):
     state, storage, _ = planned
     url, behavior, captured = ollama_server
     proposal = DevelopmentProposal(explanation="Fixture", edits=FixtureDeveloper().edits)
-    behavior["body"] = {"done": True, "message": {"content": proposal.model_dump_json()}}
+    behavior["body"] = {"done": True, "message": {"content": json.dumps({'explanation':proposal.explanation,
+        'files':{e.path:e.model_dump(mode='json',exclude={'path'}) for e in proposal.edits}})}}
     provider = OllamaDevelopmentProvider(Settings(_env_file=None, ollama_base_url=url, ollama_model="fixture-model"))
     artifact = Developer(provider).develop(state, storage, approval_identity(state, storage))
     assert len(artifact.changes) == 3
     body = captured[0][1]
     files = json.loads(body['messages'][1]['content'])['files']
     assert body["format"] == provider.response_schema(DevelopmentContext(task=state.task.request,plan=state.plan,files=files))
-    variants = body['format']['$defs']['FileEdit']['anyOf']
-    for variant in variants:
-        assert 'content' in variant['required']
-        kind = variant['properties']['kind']['const']
-        path = variant['properties']['path']['const']
-        assert (kind == 'created') == (files[path] is None)
-        assert variant['properties']['content']['type'] == ('null' if kind == 'deleted' else 'string')
+    slots = body['format']['properties']['files']
+    assert set(slots['required']) == set(files)
+    assert slots['additionalProperties'] is False
+    assert 'edits' not in body['format']['properties']
+    for path, slot in slots['properties'].items():
+        for variant in slot['anyOf'][1:]:
+            assert 'content' in variant['required']
+            kind = variant['properties']['kind']['const']
+            assert (kind == 'created') == (files[path] is None)
+            assert variant['properties']['content']['type'] == ('null' if kind == 'deleted' else 'string')
     evidence = json.loads(body["messages"][1]["content"])
     assert evidence["files"]["app.py"].startswith("def greet")
     assert evidence["files"]["new.py"] is None
@@ -286,8 +291,8 @@ def test_invalid_created_content_is_explained_without_leaking_source(planned, ol
     state, _, _ = planned
     url, behavior, _ = ollama_server
     behavior['body'] = {'done': True, 'prompt_eval_count': 100, 'eval_count': 20,
-        'message': {'content': json.dumps({'explanation':'PRIVATE_SOURCE_TEXT','edits':[
-            {'path':'new.py','kind':'created','content':None,'summary':'Create'}]})}}
+        'message': {'content': json.dumps({'explanation':'PRIVATE_SOURCE_TEXT','files':{
+            'new.py':{'kind':'created','content':None,'summary':'Create'}}})}}
     provider = OllamaDevelopmentProvider(Settings(_env_file=None,ollama_base_url=url,ollama_model='fixture-model'))
     with pytest.raises(PlanningError) as error:
         provider.generate(DevelopmentContext(task=state.task.request,plan=state.plan,files={'new.py':None}))
@@ -314,3 +319,53 @@ def test_all_unchanged_files_still_fail(planned):
         content=source.joinpath('app.py').read_bytes().decode(),summary='Unchanged')])
     with pytest.raises(RepositoryError,match='do not change any file'):
         Developer(provider).develop(state,storage,approval_identity(state,storage))
+
+
+@pytest.mark.parametrize('content',[
+    '{"explanation":"Fixture","files":{"new.py":{"kind":"created","content":"x=1","summary":"First"},"new.py":{"kind":"created","content":"x=2","summary":"Second"}}}',
+    '{"explanation":"Fixture","files":{"outside.py":{"kind":"created","content":"x=1","summary":"Outside"}}}',
+    '{"explanation":"Fixture","files":{"new.py":null}}',
+])
+def test_ollama_file_slots_reject_duplicates_unapproved_paths_and_empty_changes(planned,ollama_server,content):
+    state, _, _ = planned
+    url, behavior, _ = ollama_server
+    behavior['body'] = {'done':True,'message':{'content':content}}
+    provider = OllamaDevelopmentProvider(Settings(_env_file=None,ollama_base_url=url,ollama_model='fixture-model'))
+    with pytest.raises(PlanningError) as error:
+        provider.generate(DevelopmentContext(task=state.task.request,plan=state.plan,files={'new.py':None}))
+    assert error.value.code == 'INVALID_DEVELOPMENT'
+
+
+def test_ollama_unchanged_slots_are_not_edits(planned,ollama_server):
+    state, storage, _ = planned
+    url, behavior, _ = ollama_server
+    behavior['body'] = {'done':True,'message':{'content':json.dumps({'explanation':'Fixture',
+        'files':{'app.py':None,'old.py':None,'new.py':{'kind':'created','content':'hello=True\n','summary':'Create'}}})}}
+    provider = OllamaDevelopmentProvider(Settings(_env_file=None,ollama_base_url=url,ollama_model='fixture-model'))
+    artifact = Developer(provider).develop(state,storage,approval_identity(state,storage))
+    assert [c.path for c in artifact.changes] == ['new.py']
+    assert Path(state.workspace_path,'old.py').exists()
+
+
+def test_duplicate_edits_from_other_providers_fail_before_writes(planned):
+    state,storage,_ = planned
+    original = Path(state.workspace_path,'app.py').read_bytes()
+    provider = FixtureDeveloper(edits=[dict(path='app.py',kind='modified',content=f'x={i}\n',summary='Fixture') for i in (1,2)])
+    with pytest.raises(RepositoryError,match='more than one edit for app.py'):
+        Developer(provider).develop(state,storage,approval_identity(state,storage))
+    assert Path(state.workspace_path,'app.py').read_bytes() == original
+
+
+def test_ollama_empty_repair_response_requests_recheck(planned,ollama_server):
+    from autonomous_engineering.domain.results import ReviewResults
+    state,_,_ = planned
+    url,behavior,_ = ollama_server
+    behavior['body'] = {'done':True,'message':{'content':json.dumps({'explanation':'Closing tag already exists.',
+        'files':{'page.html':None}})}}
+    provider = OllamaDevelopmentProvider(Settings(_env_file=None,ollama_base_url=url,ollama_model='fixture-model'))
+    context = DevelopmentContext(task=state.task.request,plan=state.plan,files={'page.html':'<html></html>'},attempt=2,
+        review=ReviewResults(approved=False,summary='Missing closing tag',findings=[dict(severity='high',
+            file='page.html',line=1,evidence='<html>',description='Missing closing tag',recommended_fix='Close it')]))
+    with pytest.raises(NoDevelopmentChanges,match='existing evidence was retained') as error:
+        provider.generate(context)
+    assert error.value.explanation == 'Closing tag already exists.'

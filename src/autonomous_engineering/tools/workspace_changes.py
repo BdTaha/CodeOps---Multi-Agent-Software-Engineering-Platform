@@ -39,8 +39,10 @@ def apply_edits(reader: RepositoryReader, proposal: DevelopmentProposal, files: 
     staged: list[tuple[FileEdit, Path, str | None]] = []
     seen: set[str] = set()
     for edit in proposal.edits:
-        if edit.path not in files or edit.path.casefold() in seen:
-            raise RepositoryError("DEVELOPMENT_SCOPE", "Generated edits must use unique paths from the approved plan.")
+        if edit.path not in files:
+            raise RepositoryError("DEVELOPMENT_SCOPE", f"Generated edit path {edit.path} is outside the approved plan.")
+        if edit.path.casefold() in seen:
+            raise RepositoryError("DEVELOPMENT_SCOPE", f"Generated more than one edit for {edit.path}; combine changes into one replacement.")
         seen.add(edit.path.casefold())
         target = checked_target(reader, edit.path)
         before = files[edit.path]

@@ -65,10 +65,10 @@ class OllamaStructuredProvider(Generic[Output]):
         body = {
             "model": self.model, "stream": False, "format": schema,
             "messages": [
-                {"role": "system", "content": self.system_prompt + "\nSchema:\n" + json.dumps(schema)},
+                {"role": "system", "content": self.system_prompt + "\nSchema:\n" + json.dumps(schema) + self.system_facts(context)},
                 {"role": "user", "content": json.dumps(evidence, ensure_ascii=False)},
             ],
-            "options": {"temperature": 0, "num_predict": 4096, "num_ctx": 16384},
+            "options": self.generation_options(),
         }
         request = Request(self.url, data=json.dumps(body).encode("utf-8"),
                           headers={"Content-Type": "application/json"}, method="POST")
@@ -108,8 +108,11 @@ class OllamaStructuredProvider(Generic[Output]):
             message = payload["message"]
             if not isinstance(message, dict) or not isinstance(message.get("content"), str):
                 raise ValueError("missing text")
-            result = self.output_model.model_validate_json(message["content"])
+            result = self.parse_response(message["content"], context)
             return result
+        except PlanningError:
+            # Specialized providers may supply bounded validation diagnostics.
+            raise
         except (ValueError, KeyError, TypeError, RecursionError, ValidationError) as exc:
             detail = ''
             if isinstance(exc, ValidationError):
@@ -124,6 +127,15 @@ class OllamaStructuredProvider(Generic[Output]):
 
     def response_schema(self, context: DomainModel | None = None) -> dict:
         return self.output_model.model_json_schema()
+
+    def parse_response(self, content: str, context: DomainModel) -> Output:
+        return self.output_model.model_validate_json(content)
+
+    def system_facts(self, context: DomainModel) -> str:
+        return ''
+
+    def generation_options(self) -> dict:
+        return {"temperature": 0, "num_predict": 4096, "num_ctx": 16384}
 
 
 class OllamaPlanProvider(OllamaStructuredProvider[ImplementationPlan]):

@@ -1,6 +1,8 @@
-# Engineering Lab
+# CodeOps
 
-A local software engineering system with a React workspace and a Python/FastAPI/LangGraph backend.
+A local engineering management and software delivery platform with a React workspace and a Python/FastAPI/LangGraph backend.
+Its default experience turns a project goal into persisted epics and engineering tasks, with estimates,
+dependencies, acceptance criteria and a manually managed board. See [product planning](docs/product-planning.md).
 It analyzes repositories, plans with local Ollama, applies approved changes to isolated snapshots,
 runs tests in Docker, reviews results and performs bounded repairs. SQL-backed tasks and independent
 workers retain history and progress across refresh and restart.
@@ -18,6 +20,8 @@ docker build -t ase-runner:local -f containers/runner.Dockerfile .
 ```
 
 Set `ASE_OLLAMA_MODEL=qwen2.5-coder:3b` in `.env` and keep Ollama running.
+Docker is needed for container-based coding tests; goal planning and the board
+can run with only Ollama, the API and the worker.
 Run the API and worker in separate terminals:
 
 ```powershell
@@ -25,7 +29,11 @@ Run the API and worker in separate terminals:
 .\scripts\run-platform.ps1 worker
 ```
 
-Open [the dashboard](http://127.0.0.1:8765/ui/). Create a focused task, inspect the plan,
+Open [CodeOps](http://127.0.0.1:8765/ui/). Select an existing project, enter a goal in Planning,
+and click **Plan with CodeOps**. Open Board to inspect tasks and change their statuses. Plans and
+status changes survive refresh; effort estimates are not guaranteed delivery times.
+
+The existing coding workflow lives under Engineering. Create a focused execution task, inspect the plan,
 choose the test environment and attempt limit, then approve. Successful changes can be exported
 as real Git commits, applied to unchanged original files, or explicitly delivered as a draft
 GitHub PR after repository import and credential setup.

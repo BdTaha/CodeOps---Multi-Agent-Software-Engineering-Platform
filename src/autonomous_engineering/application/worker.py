@@ -14,6 +14,8 @@ from autonomous_engineering.infrastructure.ollama_reviewer import OllamaReviewPr
 from autonomous_engineering.infrastructure.test_process import LocalTestProcess
 from autonomous_engineering.infrastructure.docker_tests import DockerTestProcess
 from autonomous_engineering.infrastructure.task_store import TaskStore, LostLease
+from autonomous_engineering.infrastructure.planning_store import PlanningStore
+from autonomous_engineering.application.product_planning import run_product_plan
 from autonomous_engineering.workflows.development import develop_approved
 from autonomous_engineering.workflows.state import WorkflowState, WorkflowUpdate
 from autonomous_engineering.workflows.streaming import stream_workflow
@@ -22,19 +24,22 @@ logger = logging.getLogger(__name__)
 
 
 class Worker:
-    def __init__(self, settings, store=None, development_provider=None, review_provider=None):
+    def __init__(self, settings, store=None, development_provider=None, review_provider=None, product_plan_provider=None):
         self.config = settings
         self.store = store or TaskStore(settings.database_url.get_secret_value())
         self.owner = str(uuid4())
         self.development_provider = development_provider
         self.review_provider = review_provider
+        self.product_plan_provider = product_plan_provider
+        self.planning_store = PlanningStore(self.store.engine)
 
     def run_once(self):
         self.store.worker_seen(self.owner)
         self.store.settle_interrupted()
         job = self.store.claim(self.owner, self.config.lease_seconds)
         if job is None:
-            return False
+            return run_product_plan(self.config, self.planning_store, self.owner, self.product_plan_provider,
+                worker_seen=lambda: self.store.worker_seen(self.owner))
         task_id = job['id']
         cancelled, finished = threading.Event(), threading.Event()
         def heartbeat():

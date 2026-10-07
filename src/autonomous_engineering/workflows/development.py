@@ -5,7 +5,7 @@ from time import perf_counter
 from typing import Callable
 from langgraph.graph import StateGraph, START, END
 
-from autonomous_engineering.agents.developer import Developer, DevelopmentProvider, approval_identity, workspace_reader
+from autonomous_engineering.agents.developer import Developer, DevelopmentProvider, NoDevelopmentChanges, approval_identity, workspace_reader
 from autonomous_engineering.domain.development import FileEdit
 from autonomous_engineering.tools.workspace_changes import review_diff
 from autonomous_engineering.domain.results import CodeChange, DevelopmentArtifact
@@ -56,7 +56,8 @@ def develop_approved(state: WorkflowState, storage: Path, approved_id: str,
                 changes.append(CodeChange(path=path, kind=kind, summary=edit.summary))
                 hashes[path] = hashlib.sha256(after.encode()).hexdigest() if after is not None else None
             artifact = DevelopmentArtifact(approval_id=initial_receipt, approved_at=changed.development.approved_at,
-                explanation=changed.development.explanation, changes=tuple(changes), diff="".join(edits), content_hashes=hashes, original_files=originals)
+                explanation=changed.development.explanation, changes=tuple(changes), diff="".join(edits), content_hashes=hashes, original_files=originals,
+                repair_note=changed.development.repair_note)
             result = {"snapshot": changed.apply(WorkflowUpdate(changes=artifact.changes, development=artifact))}
         return result
     def node(operation, action):
@@ -103,6 +104,15 @@ def _develop(state: WorkflowState, storage: Path, approved_id: str,
         update = WorkflowUpdate(current_agent=AgentName.DEVELOPER, changes=artifact.changes,
                                 development=artifact, development_attempt_increment=1)
         summary = f"Applied {len(artifact.changes)} file edits to the approved snapshot; tests and review have not run."
+    except NoDevelopmentChanges as exc:
+        if state.development is None:
+            raise RepositoryError('INVALID_EDIT','No initial implementation was produced.') from exc
+        note = 'Previous review: ' + (state.review.summary[:1200] if state.review else 'No passing validation yet.')
+        note += '\nDeveloper reports no changes: ' + exc.explanation[:2000]
+        artifact = state.development.model_copy(update={'repair_note':note})
+        update = WorkflowUpdate(current_agent=AgentName.DEVELOPER, development_attempt_increment=1,
+            development=artifact, tests=state.tests, review=state.review)
+        summary = 'Repair proposed no changes; retained the artifact and requested fresh test and review evidence.'
     except (RepositoryError, PlanningError) as exc:
         update = WorkflowUpdate(current_agent=AgentName.DEVELOPER, development_attempt_increment=1,
             errors=(ExecutionError(code=exc.code, message=str(exc), retryable=getattr(exc, "retryable", False)),))
