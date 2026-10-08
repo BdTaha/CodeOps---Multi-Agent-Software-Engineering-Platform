@@ -11,6 +11,7 @@ export function nextAction(state:ExecutionState|null,job:Job|null,historical:boo
   if(isActive(job))return job?.cancel?'Cancellation requested':'Execution in progress';
   if(state?.can_accept)return 'Inspect the evidence, then accept or request changes';
   if(state?.current?.review_state==='accepted')return 'Accepted · choose an explicit delivery action';
+  if(job?.phase==='failed'||job?.phase==='cancelled')return 'Inspect the recorded failure and readiness before retrying';
   if(state?.eligibility.can_start)return 'Ready to run with CodeOps';
   if(!state&&job?.phase==='succeeded')return 'Inspect the result, then choose delivery';
   return state?.eligibility.reasons[0]??(job?.phase==='failed'?'Inspect the recorded failure before retrying':'Select an engineering task');

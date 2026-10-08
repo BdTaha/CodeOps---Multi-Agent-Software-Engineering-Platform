@@ -9,6 +9,7 @@ import type { EngineeringRoute, NavigatorMode } from './navigation';
 import { routeUrl } from './navigation';
 import type { ExecutionLink } from './state';
 import { isActive } from './state';
+import { navigatorReadiness } from './lifecycle';
 
 export function useEngineeringInventory() {
   const [workspace,setWorkspace]=useState<WorkspaceSnapshot|null>(null),[jobs,setJobs]=useState<Job[]>([]),[error,setError]=useState(''),[key,setKey]=useState(0);
@@ -60,7 +61,7 @@ export default function EngineeringTaskPicker({inventory,route,onSelect,onMode,m
       {!inventory.workspace?<p className="eng-empty-note">Loading engineering work…</p>:route.mode==='history'?<>
         {historyLoading&&<p className="eng-empty-note" role="status">Loading run history…</p>}
         {visibleRuns.map(run=><button key={run.execution_task_id} className={route.run===run.execution_task_id?'selected':''} onClick={()=>onSelect(routeUrl('task',run.taskId!,'diff',run.execution_task_id,'history',true))}><span><code>{run.key}</code><small>{run.review_state.replaceAll('_',' ')}</small></span><strong>{run.title}</strong><small>Run {run.number} · {run.phase.replaceAll('_',' ')}</small></button>)}
-      </>:tasks.map(task=><button key={task.id} className={route.kind==='task'&&route.id===task.id?'selected':''} onClick={()=>onSelect(routeUrl('task',task.id,task.execution_run_id?'diff':'overview',null,route.mode))}><span><code>{task.key}</code><small>{task.status.replaceAll('_',' ')}</small></span><strong>{task.title}</strong><small>{inventory.workspace?.projects.find(p=>p.id===task.project_id)?.name} · {inventory.workspace?.members.find(m=>m.id===task.assignee_id)?.name??'Unassigned'}</small></button>)}
+      </>:tasks.map(task=><button key={task.id} className={route.kind==='task'&&route.id===task.id?'selected':''} onClick={()=>onSelect(routeUrl('task',task.id,task.execution_run_id?'diff':'overview',null,route.mode))}><span><code>{task.key}</code><small>{task.status.replaceAll('_',' ')}</small></span><strong>{task.title}</strong><small>{inventory.workspace?.projects.find(p=>p.id===task.project_id)?.name} · {inventory.workspace?.members.find(m=>m.id===task.assignee_id)?.name??'Unassigned'} · {inventory.workspace&&navigatorReadiness(task,inventory.workspace,inventory.jobs)}</small></button>)}
       {visibleJobs.map(job=><button key={job.id} className={route.id===job.id?'selected':''} onClick={()=>onSelect(routeUrl('run',job.id,job.snapshot.changes.length?'diff':'overview',null,route.mode,route.mode==='history'))}><span><code>{job.snapshot.run_id.slice(0,8)}</code><small>{job.phase.replaceAll('_',' ')}</small></span><strong>{job.snapshot.task.request.user_request}</strong><small>Standalone run · {job.snapshot.task.request.repository_path.split(/[\\/]/).at(-1)}</small></button>)}
       {inventory.workspace&&!historyLoading&&!visibleJobs.length&&!(route.mode==='history'?visibleRuns.length:tasks.length)&&<div className="eng-empty-note"><p>{empty}</p>{route.mode!=='workspace'&&<button className="text-button" onClick={()=>onMode('workspace')}>Show all engineering work</button>}</div>}
     </div>

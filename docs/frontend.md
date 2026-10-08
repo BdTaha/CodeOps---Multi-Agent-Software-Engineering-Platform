@@ -45,6 +45,59 @@ workspace chrome, diff parsing/rendering, approval, evidence, review dialogs, an
 history views. Existing backend approval, review, acceptance, delivery, and preview
 operations remain authoritative.
 
+## Lifecycle-aware workspace
+
+The frontend derives UNASSIGNED, READY, BLOCKED, RUNNING_ANALYSIS,
+AWAITING_PLAN_APPROVAL, RUNNING_IMPLEMENTATION, REVIEW, DONE, FAILED, and
+HISTORICAL from existing assignment, backend eligibility, job phase/node,
+recorded operations, task status, and human review state. It does not persist a
+second lifecycle model. Eligibility remains the authority for starting/retrying;
+acceptance and accepted-delivery controls retain their existing server gates.
+
+| Tab | Availability |
+|---|---|
+| Overview | Always enabled |
+| Plan | Enabled with a plan; compact pending context during analysis/planning; attention during approval |
+| Files / Diff | Enabled only with recorded changes; automatically selects the first change |
+| Tests | Enabled with results; compact context once test execution starts |
+| Review | Enabled with results; compact context once reviewer execution starts |
+| Acceptance | Always enabled; neutral requirements before the first execution, existing evidence semantics afterward |
+| Preview | Linked, successful, human-reviewable or accepted execution; useful configuration explanation if no profile; historical inspection remains read-only |
+| History | Enabled once a job or retained run exists |
+
+All nine tabs remain visible. Disabled tabs use muted styling, `aria-disabled`,
+and short explanations. Clicks cannot navigate to them; arrow keys, Home, and End
+skip unavailable tabs. An unavailable bookmark or stored tab falls back to
+Overview, or Plan during plan approval. A valid explicit tab wins, including
+historical evidence links. With no explicit choice, Overview is the default and
+Plan is preferred at approval. Polling does not move users away from valid tabs.
+
+The header emphasizes one next action: assign, run, review plan, view execution,
+accept, explicit delivery, or eligible retry. Delivery promotes the first action
+without a saved receipt (configured draft PR, then commit export, then local
+application). Historical headers omit all mutation actions.
+
+Before execution, Overview shows description, neutral requirements, dependencies
+with actual statuses, owner/squad/runtime context, and execution readiness. The
+secondary pane becomes a compact task inspector with assignment controls,
+dependencies, criteria count, and not-started execution. Assignment buttons in the
+header, Overview, and inspector focus the existing inline TaskAssignmentEditor.
+Engineering filters new choices/recommendations to AI developer identities; Teams
+retains its existing general assignment behavior. Existing memberships,
+deterministic recommendations, capacity warnings, revisions, and assignment APIs
+are reused. Saving stays on Overview and refreshes readiness. Runtime/queue values
+are shown only when reported. Dependency, inactive/offline identity, membership,
+and capacity reasons remain visible; blocked tasks cannot start.
+
+Running Overview shows current operation, owner, snapshot context and the latest
+recorded operation result. It only displays artifact summaries already recorded.
+Review surfaces implementation, tests, review, acceptance and preview evidence.
+Done shows acceptance and delivery receipts; failed/cancelled work shows the
+recorded error, last successful operation, readiness and history. Once execution
+exists, the secondary pane returns to the existing workflow model and adds file
+navigation only when changes exist. Navigator rows show known blockers or recorded
+progress; inventory data alone never claims authoritative execution eligibility.
+
 ## Inspecting and acting
 
 The diff navigator shows real added/modified/deleted files. Unified and split views
@@ -94,8 +147,9 @@ can be incomplete; full source highlighting retains multiline token boundaries. 
 source availability depends on retained workspace files. Standalone runs have no
 EngineeringTask ownership or managed preview. Compact HTTP projections reduce
 payloads, but database hydration is unchanged. Real current production tasks did not
-have linked historical runs, so history isolation was verified through unit tests
-and the existing bridge suite rather than by changing users' tasks.
+have linked historical runs. Lifecycle interaction, contextual assignment, and historical
+inspection were additionally verified using isolated UI fixtures of the real workspace
+with test-only API responses; production tasks were not changed.
 
 ## Build, run, and verify
 
@@ -120,7 +174,9 @@ cd ..
 
 Frontend tests cover diff line numbers, replacement alignment, bookmarks, workflow
 states, historical evidence separation, semantic tabs, selection priority, navigator
-empty states, read-only history selection, and syntax text/line/escaping integrity. Backend projection tests
+empty states, read-only history selection, syntax text/line/escaping integrity, lifecycle
+phases, tab availability, saved/deep-link fallback, neutral requirements, assignment/run
+actions, dependency/offline blockers, first-file selection, human review, and accepted delivery. Backend projection tests
 check that compact responses preserve counts and default API contracts without
 mutating retained artifacts. Optional integration suites require their configured
 Docker/PostgreSQL/provider environments.
