@@ -24,6 +24,9 @@ def initialize_team_schema(engine):
         from autonomous_engineering.infrastructure.preview_tables import preview_profiles, execution_previews
         preview_profiles.create(db, checkfirst=True)
         execution_previews.create(db, checkfirst=True)
+        from autonomous_engineering.infrastructure.planning_drafts import DRAFT_TABLES
+        for table in DRAFT_TABLES:
+            table.create(db, checkfirst=True)
         db.execute(_insert(db)(workspace_state).values(id='local', revision=0).on_conflict_do_nothing(index_elements=['id']))
         if db.execute(select(migrations.c.version).where(migrations.c.version == VERSION)).first():
             return

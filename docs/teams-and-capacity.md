@@ -1,6 +1,8 @@
 # Workspace teams and planning capacity
 
-CodeOps creates goals, plans, epics and EngineeringTasks. Teams assigns ownership
+CodeOps saves product goals as editable drafts. Human approval creates permanent
+epics and EngineeringTasks. Drafts are excluded from capacity/assignment queries;
+all older approved work remains included. Teams assigns ownership
 to those tasks. The autonomous coding system remains a separate execution layer;
 assigning a task does not create an execution, start Ollama, or deliver a PR.
 The [execution bridge](task-execution-bridge.md) now provides an explicit Run with

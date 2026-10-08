@@ -24,6 +24,7 @@ def test_postgresql_team_persistence_capacity_and_atomic_suggestions(tmp_path):
         planning = PlanningStore(store.engine)
         planning.enqueue(project['id'],'Fixture authentication')
         assert Worker(config,store,product_plan_provider=Provider()).run_once()
+        record=planning.latest(project['id']); planning.approve(record.goal.id,record.draft_revision)
         teams = TeamStore(planning)
         squad = teams.save_squad(project['id'],SquadInput(name='Core',technical_areas=['Backend','Database']))
         human = teams.save_member(project['id'],ProjectMemberInput(name='Fixture human',role='Engineer',member_type='human',squad_id=squad.id,

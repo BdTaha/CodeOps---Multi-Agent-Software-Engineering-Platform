@@ -23,9 +23,16 @@ test('assignment is the dominant action before execution; run follows eligible a
  assert.equal(primaryAction(f.state(),null),'assign');assert.match(actions(f.state(),null),/class="button primary"[^>]*>Assign AI developer/);
  assert.equal(uxPhase(f.ready(),null),'READY');assert.match(actions(f.ready(),null),/Run with CodeOps/);assert.doesNotMatch(actions(f.ready(),null),/Assign AI developer/);
 });
+test('header owns the dominant CTA, compact sidebar has none, Overview separates readiness conditions',()=>{
+ const state=f.state();state.eligibility.dependencies=[{key:'CO-8',title:'User storage',status:'backlog'}];state.eligibility.reasons=['Assign an AI developer.','CO-8 must be Done before running this task.'];
+ const header=actions(state,null),sidebar=render(React.createElement(PreRunInspector,{state,onAssign:noop,onRun:noop,busy:false})),detail=overview(state,null);
+ assert.equal((header.match(/>Assign AI developer</g)||[]).length,1);assert.doesNotMatch(sidebar,/button|Readiness|ASSIGNMENT REQUIRED/);
+ assert.equal((detail.match(/>Assign AI developer</g)||[]).length,1);assert.match(detail,/Needs AI developer assignment/);assert.match(detail,/1 blocking dependency/);assert.doesNotMatch(detail,/ASSIGNMENT REQUIRED/);
+ assert.doesNotMatch(overview(f.ready(),null),/>Run with CodeOps</);
+});
 test('blocked dependency includes key and status, disables Run and offers assignment change',()=>{
  const state=f.ready();state.eligibility={...state.eligibility,can_start:false,reasons:['CO-8 must be Done before running this task.'],dependencies:[{key:'CO-8',title:'Schema',status:'in_progress'}]};
- assert.equal(uxPhase(state,null),'BLOCKED');const html=render(React.createElement(PreRunInspector,{state,onAssign:noop,onRun:noop,busy:false}));assert.match(html,/Waiting for dependencies/);assert.match(html,/CO-8/);assert.match(html,/in progress/);assert.match(html,/disabled=""[^>]*>Run with CodeOps/);
+ assert.equal(uxPhase(state,null),'BLOCKED');const html=render(React.createElement(PreRunInspector,{state,onAssign:noop,onRun:noop,busy:false}));assert.doesNotMatch(html,/ASSIGNMENT REQUIRED|Assign AI developer/);assert.match(html,/CO-8/);assert.match(html,/in progress/);assert.doesNotMatch(html,/button/);assert.match(actions(state,null),/disabled=""[^>]*>Run with CodeOps/);
 });
 test('offline AI displays the actual reason and change-assignment control',()=>{
  const state=f.ready();state.owner={...f.owner,availability:'offline'};state.eligibility={...state.eligibility,can_start:false,reasons:['The AI identity is offline.']};

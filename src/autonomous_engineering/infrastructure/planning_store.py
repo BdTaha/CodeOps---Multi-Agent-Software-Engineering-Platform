@@ -8,7 +8,7 @@ from sqlalchemy.exc import IntegrityError
 
 from autonomous_engineering.domain.base import utc_now
 from autonomous_engineering.domain.product_planning import (
-    EngineeringTask, Epic, PlanRecord, ProductPlanDraft, ProjectGoal, ProjectPlan,
+    EngineeringTask, Epic, PlanRecord, ProductPlanDraft, ProjectGoal, ProjectPlan, PlanningBasis,
 )
 from autonomous_engineering.infrastructure.task_store import LostLease, metadata, projects, events
 
@@ -79,6 +79,17 @@ class PlanningStore:
                 .order_by(goals.c.created_at.desc(), goals.c.id.desc()).limit(1)).scalar_one_or_none()
         return self.get(goal_id) if goal_id else None
 
+    def tasks(self, project_id):
+        with self.engine.connect() as db:
+            rows = db.execute(select(engineering_tasks).join(goals,goals.c.id==engineering_tasks.c.plan_id).where(
+                engineering_tasks.c.project_id==str(project_id),goals.c.status.in_(['ready','approved'])).order_by(engineering_tasks.c.number)).mappings()
+            return tuple(self._task(db,row) for row in rows)
+
+    def history(self, project_id):
+        with self.engine.connect() as db:
+            ids = list(db.execute(select(goals.c.id).where(goals.c.project_id==str(project_id)).order_by(goals.c.created_at.desc(),goals.c.id.desc())).scalars())
+        return tuple(self.get(identity) for identity in ids)
+
     def _task(self, db, row):
         from autonomous_engineering.infrastructure.team_tables import assignments
         values = dict(row)
@@ -104,7 +115,7 @@ class PlanningStore:
                 return None
             goal = ProjectGoal(id=row['id'], project_id=row['project_id'], goal=row['goal'], created_at=row['created_at'])
             plan = None
-            if row['status'] == 'ready':
+            if row['status'] in {'ready', 'approved'}:
                 epic_list = tuple(Epic.model_validate({key: value for key, value in item.items() if key != 'position'})
                     for item in db.execute(select(epics).where(epics.c.plan_id == row['id']).order_by(epics.c.position)).mappings())
                 task_list = tuple(self._task(db, item) for item in db.execute(select(engineering_tasks)
@@ -114,7 +125,15 @@ class PlanningStore:
                     estimated_hours=sum(task.estimated_hours for task in task_list))
             invocations = tuple(json.loads(data) for data in db.execute(select(events.c.data).where(
                 events.c.task_id == row['id'], events.c.kind == 'model_invocation').order_by(events.c.id)).scalars())
-            return PlanRecord(goal=goal, status=row['status'], plan=plan, attempts=row['attempts'], error=row['error'], model=row['model'], model_invocations=invocations)
+            from autonomous_engineering.infrastructure.planning_drafts import drafts, read_draft
+            saved = db.execute(select(drafts).where(drafts.c.plan_id == row['id'])).mappings().first()
+            return PlanRecord(goal=goal, status='approved' if row['status']=='ready' else row['status'], plan=plan,
+                attempts=row['attempts'], error=row['error'], model=row['model'], model_invocations=invocations,
+                draft=read_draft(db, row) if saved and row['status'] in {'draft','approved'} else None,
+                draft_revision=saved['revision'] if saved else None,
+                planning_basis=PlanningBasis.model_validate_json(saved['basis']) if saved else PlanningBasis(mode='goal_only', reason='Legacy plan has no recorded repository grounding.') if row['status']=='ready' else None,
+                materialization=json.loads(saved['materialization'] or '{}') if saved else {},
+                approved_at=saved['approved_at'] if saved else None, legacy_approved=row['status']=='ready')
 
     def claim(self, owner, lease_seconds):
         with self.engine.begin() as db:
@@ -146,18 +165,57 @@ class PlanningStore:
             if result.rowcount != 1:
                 raise LostLease('Product planning lease was lost.')
 
+    def record_basis(self, goal_id, owner, basis):
+        from autonomous_engineering.infrastructure.planning_drafts import drafts
+        from autonomous_engineering.infrastructure.team_tables import _insert
+        with self.engine.begin() as db:
+            owned = db.execute(select(goals.c.id).where(goals.c.id==goal_id, goals.c.owner==owner,
+                goals.c.status=='generating', goals.c.lease>time.time())).first()
+            if not owned: raise LostLease('Product planning lease was lost.')
+            db.execute(_insert(db)(drafts).values(plan_id=goal_id, revision=0, basis=basis.model_dump_json()).on_conflict_do_nothing(index_elements=['plan_id']))
+
     def complete(self, goal_id, owner, draft: ProductPlanDraft, attempts, model):
+        from autonomous_engineering.infrastructure.planning_drafts import drafts, write_draft
+        from autonomous_engineering.infrastructure.team_tables import _insert
+        draft = ProductPlanDraft.model_validate(draft)
+        with self.engine.begin() as db:
+            changed = db.execute(update(goals).where(goals.c.id==goal_id, goals.c.owner==owner,
+                goals.c.status=='generating', goals.c.lease>time.time()).values(status='draft',
+                attempts=attempts, model=model, active_project=None, owner=None, lease=None))
+            if changed.rowcount!=1: raise LostLease('Product planning lease was lost; no draft was saved.')
+            db.execute(_insert(db)(drafts).values(plan_id=goal_id, revision=0,
+                basis=PlanningBasis(mode='goal_only',reason='Repository context was not supplied.').model_dump_json()).on_conflict_do_nothing(index_elements=['plan_id']))
+            write_draft(db, goal_id, draft, 0)
+        return self.get(goal_id)
+
+    def edit(self, goal_id, draft, revision):
+        from autonomous_engineering.infrastructure.planning_drafts import drafts, write_draft
         from autonomous_engineering.infrastructure.team_tables import lock_project
         draft = ProductPlanDraft.model_validate(draft)
         with self.engine.begin() as db:
-            row = db.execute(select(goals).where(goals.c.id == goal_id)).mappings().one()
+            row = db.execute(select(goals).where(goals.c.id==str(goal_id))).mappings().one()
             lock_project(db, row['project_id'])
-            result = db.execute(update(goals).where(goals.c.id == goal_id, goals.c.owner == owner,
-                goals.c.status == 'generating', goals.c.lease > time.time()).values(status='ready', title=draft.title,
-                    summary=draft.summary, assumptions=json.dumps(draft.assumptions), attempts=attempts, model=model,
-                    active_project=None, owner=None, lease=None))
-            if result.rowcount != 1:
-                raise LostLease('Product planning lease was lost; no plan was saved.')
+            row = db.execute(select(goals).where(goals.c.id==str(goal_id))).mappings().one()
+            if row['status']!='draft': raise PlanningConflict('Only draft plans can be edited. Create a new goal for an approved plan.')
+            changed = db.execute(update(drafts).where(drafts.c.plan_id==str(goal_id), drafts.c.revision==revision,
+                drafts.c.approved_at.is_(None)).values(revision=revision+1))
+            if changed.rowcount!=1: raise PlanningConflict('Draft changed. Reload before saving or approving.')
+            write_draft(db, str(goal_id), draft, revision+1)
+        return self.get(goal_id)
+
+    def approve(self, goal_id, revision):
+        from autonomous_engineering.infrastructure.planning_drafts import drafts, read_draft
+        from autonomous_engineering.infrastructure.team_tables import lock_project
+        goal_id = str(goal_id)
+        with self.engine.begin() as db:
+            row = db.execute(select(goals).where(goals.c.id==goal_id)).mappings().one()
+            lock_project(db, row['project_id'])
+            row = db.execute(select(goals).where(goals.c.id==goal_id)).mappings().one()
+            changed = db.execute(update(goals).where(goals.c.id==goal_id, goals.c.status=='draft').values(status='approved'))
+            saved = db.execute(select(drafts).where(drafts.c.plan_id==goal_id)).mappings().first()
+            if changed.rowcount!=1 or not saved or saved['revision']!=revision or saved['approved_at']:
+                raise PlanningConflict('Draft changed or already approved. Reload before approving.')
+            draft = read_draft(db, row)  # Validate the complete graph inside the materialization transaction.
             epic_ids = {epic.ref: str(uuid4()) for epic in draft.epics}
             task_ids = {task.ref: str(uuid4()) for task in draft.tasks}
             number = db.execute(select(func.max(engineering_tasks.c.number))
@@ -176,6 +234,7 @@ class PlanningStore:
                     db.execute(insert(dependencies).values(task_id=task_ids[task.ref], depends_on_id=task_ids[ref]))
                 for position, criterion in enumerate(task.acceptance_criteria):
                     db.execute(insert(criteria).values(id=str(uuid4()), task_id=task_ids[task.ref], position=position, description=criterion.description))
+            db.execute(update(drafts).where(drafts.c.plan_id == goal_id).values(approved_at=utc_now().isoformat(), materialization=json.dumps({task.ref: 'CO-'+str(number+index) for index, task in enumerate(draft.tasks,1)})))
         return self.get(goal_id)
 
     def set_status(self, task_id, status, revision):

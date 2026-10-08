@@ -1,3 +1,6 @@
+> Historical milestone: current v1 architecture and behavior are documented in
+> [architecture](architecture.md), [README](../README.md) and [demo](v1-demo.md).
+
 # Phase 3: basic LangGraph orchestration
 
 This document describes the Phase 3 milestone. The current graph now performs

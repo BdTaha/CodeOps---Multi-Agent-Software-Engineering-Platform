@@ -3,6 +3,7 @@ import logging
 import threading
 
 from autonomous_engineering.agents.planner import PlanningError
+from autonomous_engineering.tools.repository import RepositoryError
 from autonomous_engineering.agents.product_planner import ProductPlanningAgent
 from autonomous_engineering.infrastructure.model_product import GatewayProductPlanProvider
 from autonomous_engineering.infrastructure.task_store import LostLease
@@ -46,13 +47,17 @@ def run_product_plan(config, store, owner, provider=None, worker_seen=None):
                     if not owned: raise LostLease('Planning lease ended during model invocation.')
                     TaskStore.event(db, job['id'], 'model_invocation', None, invocation.model_dump(mode='json'))
             agent.provider.trace_observer = observe
-        draft = agent.plan(job['goal'], store.project(job['project_id']))
+        from autonomous_engineering.tools.product_context import planning_context
+        project = store.project(job['project_id'])
+        basis = planning_context(project, job['goal'])
+        store.record_basis(job['id'], owner, basis)
+        draft = agent.plan(job['goal'], project, basis)
         store.complete(job['id'], owner, draft, agent.attempts, getattr(agent.provider, 'model', None))
     except LostLease:
         logger.warning('Product plan stopped after lease loss goal_id=%s', job['id'])
     except Exception as exc:
-        message = f'{exc.code}: {exc}' if isinstance(exc, PlanningError) else 'PLANNING_FAILED: Product planning failed; inspect the worker log and submit again.'
-        if not isinstance(exc, PlanningError):
+        message = f'{exc.code}: {exc}' if isinstance(exc, (PlanningError, RepositoryError)) else 'PLANNING_FAILED: Product planning failed; inspect the worker log and submit again.'
+        if not isinstance(exc, (PlanningError, RepositoryError)):
             logger.exception('Product planning failed goal_id=%s', job['id'])
         try:
             store.fail(job['id'], owner, message, agent.attempts if agent else 0, getattr(agent.provider, 'model', None) if agent else None)

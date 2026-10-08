@@ -1,7 +1,7 @@
 # Running the complete local platform
 
 The API queues tasks in SQL storage. A separate worker prepares a filtered snapshot,
-analyzes it and calls local Ollama for a plan. Approval authorizes that exact snapshot,
+analyzes it and calls the configured Model Gateway for a coding plan. Approval authorizes that exact snapshot,
 its declared paths, selected test environment, and a bounded attempt budget. Development,
 tests and read-only review repeat within that scope until validation succeeds or the
 budget ends. The original repository changes only after explicit delivery approval.
@@ -25,7 +25,9 @@ Run these in separate terminals:
 .\scripts\run-platform.ps1 worker
 ```
 
-Open http://127.0.0.1:8765/ui/ and use **New task**. Review the plan, choose Docker
+Open http://127.0.0.1:8765/ui/. The product flow begins with Projects → Planning,
+draft editing and product approval; see [v1 demo](v1-demo.md). Standalone engineering
+requests remain available under Engineering. Review the coding plan, choose Docker
 tests, and approve. Task history, source, diffs, review, progress and outcomes survive
 browser refresh. `/docs` contains the API schema; `/evaluation` returns observed metrics.
 The old `monitor:create_monitor_app` is retained for compatibility tests; use the
@@ -44,8 +46,8 @@ in `.env`, then restart API and worker. This starts a new history; it does not m
 existing SQLite rows. The Compose password is for loopback development; set
 `ASE_POSTGRES_PASSWORD` and a matching database URL for other installations.
 
-Schema tables initialize on startup. This is the initial platform schema; future schema
-changes require migrations before deployment. Back up the database **and** `.workspaces`
+Schema tables initialize through additive fenced migrations on startup. Legacy ready
+product plans are read as approved; new plans remain editable drafts until approval. Back up the database **and** `.workspaces`
 to preserve retained source evidence and delivery exports. Do not delete volumes to restart.
 
 Workers claim jobs using transactional fencing and renew leases. Queued jobs and pending

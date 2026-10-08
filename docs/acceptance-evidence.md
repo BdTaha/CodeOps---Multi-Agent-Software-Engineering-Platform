@@ -229,8 +229,9 @@ require human judgment. Conservative unresolved reviewer scope may flag unrelate
 criteria. Old historical packages are not generated automatically, and there is no
 public evidence retry/version migration interface.
 
-The recommended next phase is **runner-produced structured per-test reports and
+A future roadmap item is **runner-produced structured per-test reports and
 explicit requirement/test declarations**, with final source/test fingerprints and
 better targeted conflict scope. It is not implemented here. Hosted previews,
 browser-driven validation, automatic dispatch/acceptance/delivery and provider
-switching remain outside this phase.
+routing is provided by the current [Models settings](provider-settings.md); the
+evidence layer does not change provider routes.

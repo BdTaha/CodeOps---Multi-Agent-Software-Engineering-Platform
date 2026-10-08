@@ -31,6 +31,7 @@ def shared(request,tmp_path):
         record=planning.enqueue(project['id'],'Fixture cross-project plan')
         planning.claim('fixture',60)
         planning.complete(str(record.goal.id),'fixture',ProductPlanDraft.model_validate(data),1,'explicit-fixture')
+        planning.approve(record.goal.id,0)
         project_list.append(project)
     config=Settings(_env_file=None,environment='test',repository_root=tmp_path,workspace_root=tmp_path/'snapshots')
     with TestClient(create_platform_app(config,store)) as client:

@@ -58,7 +58,7 @@ def bridge(request,tmp_path):
                 dict(ref='T'+str(n+1),epic_ref='E1',title='Trim greeting '+str(n),description='Trim surrounding whitespace in greet(name)',
                     priority='high',estimated_hours=2,technical_area='Backend',dependencies=[],
                     acceptance_criteria=[dict(description='Leading and trailing whitespace is ignored')]) for n in range(2)]))
-        planning.complete(str(goal.goal.id),'fixture',draft,1,'fixture'); projects.append(project)
+        planning.complete(str(goal.goal.id),'fixture',draft,1,'fixture'); planning.approve(goal.goal.id,0); projects.append(project)
     config=Settings(_env_file=None,environment='test',repository_root=tmp_path,workspace_root=tmp_path/'snapshots',test_backend='local')
     app=create_platform_app(config,store)
     with TestClient(app) as client:

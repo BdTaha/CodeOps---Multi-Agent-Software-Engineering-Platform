@@ -9,11 +9,14 @@ import * as api from './productApi';
 import * as teamApi from './teamApi';
 import type { TeamSnapshot } from './teamTypes';
 import TaskAssignmentEditor from './TaskAssignmentEditor';
+import DraftPlanEditor, {PlanningBasisView} from './DraftPlanEditor';
+import type {ProjectPlan} from './productTypes';
 
 const hours = (value: number) => `${Number(value.toFixed(2))}h`;
 
 export default function Planning({ lab, board = false }: { lab: Workbench; board?: boolean }) {
   const [record, setRecord] = useState<PlanRecord | null>(null);
+  const [boardTasks,setBoardTasks]=useState<EngineeringTask[]>([]),[history,setHistory]=useState<PlanRecord[]>([]);
   const [goal, setGoal] = useState('');
   const [loading, setLoading] = useState(true); const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,8 +31,8 @@ export default function Planning({ lab, board = false }: { lab: Workbench; board
   const [teamData, setTeamData] = useState<TeamSnapshot | null>(null);
   const projectId = lab.project.id;
   const current = useRef(projectId); current.current = projectId;
-  const pending = record?.status === 'queued' || record?.status === 'generating';
-  const plan = record?.plan;
+  const pending = !board && (record?.status === 'queued' || record?.status === 'generating');
+  const plan:ProjectPlan|null|undefined=board?(boardTasks.length?{id:projectId,project_id:projectId,title:'Approved work',summary:'',assumptions:[],epics:[],tasks:boardTasks,estimated_hours:boardTasks.reduce((total,task)=>total+task.estimated_hours,0),estimate_notice:'Rough effort estimate'}:null):record?.plan;
   const filteredTasks = plan?.tasks.filter(task => `${task.key} ${task.title} ${task.description}`.toLowerCase().includes(query.toLowerCase())
     && (priorityFilter === 'all' || task.priority === priorityFilter) && (areaFilter === 'all' || task.technical_area === areaFilter)
     && (assigneeFilter === 'all' || (assigneeFilter === 'unassigned' ? !task.assignee_id : task.assignee_id === assigneeFilter))
@@ -38,9 +41,11 @@ export default function Planning({ lab, board = false }: { lab: Workbench; board
   const selectedTask = plan?.tasks.find(task => task.id === selected);
   useEffect(() => {
     let alive = true;
-    setLoading(true); setRecord(null); setGoal(''); setSelected(null); setError(null);
+    setBoardTasks([]);setHistory([]);setLoading(true); setRecord(null); setGoal(''); setSelected(null); setError(null);
     setQuery(''); setPriorityFilter('all'); setAreaFilter('all'); setAssigneeFilter('all'); setSquadFilter('all'); setTeamData(null);
     teamApi.getTeams(projectId).then(result => { if (alive) setTeamData(result); }).catch(failure => { if (alive) setError((failure as Error).message); });
+    api.getApprovedTasks(projectId).then(result=>{if(alive)setBoardTasks(result.tasks);}).catch(failure=>{if(alive)setError(failure.message);});
+    api.getPlanHistory(projectId).then(result=>{if(alive)setHistory(result.plans);}).catch(failure=>{if(alive)setError(failure.message);});
     api.getPlan(projectId).then(result => { if (alive) { setRecord(result); setGoal(result?.goal.goal ?? ''); } })
       .catch(failure => { if (alive) setError((failure as Error).message); })
       .finally(() => { if (alive) setLoading(false); });
@@ -50,21 +55,22 @@ export default function Planning({ lab, board = false }: { lab: Workbench; board
     if (!pending && !plan) return;
     let alive = true; let timer: ReturnType<typeof setTimeout>;
     async function poll() {
-      try { const [result, teams] = await Promise.all([api.getPlan(projectId),teamApi.getTeams(projectId)]); if (alive) { setRecord(result); setTeamData(teams); } }
+      try { const [result, teams, approved] = await Promise.all([board?api.getPlan(projectId):record?api.getSavedPlan(record.goal.id):api.getPlan(projectId),teamApi.getTeams(projectId),board?api.getApprovedTasks(projectId):Promise.resolve(null)]); if (alive) { setRecord(result);setHistory(previous=>previous.map(item=>item.goal.id===result?.goal.id?result:item));setTeamData(teams);if(approved)setBoardTasks(approved.tasks); } }
       catch (failure) { if (alive) setError((failure as Error).message); }
       if (alive) timer = setTimeout(poll, pending ? 1500 : 4000);
     }
     timer = setTimeout(poll, 1000);
     return () => { alive = false; clearTimeout(timer); };
-  }, [pending, projectId, !!plan]);
+  }, [pending, projectId, !!plan, board, record?.goal.id]);
   function updateTask(updated: EngineeringTask) {
     if (current.current !== updated.project_id) return;
+    setBoardTasks(previous=>previous.map(task=>task.id===updated.id?updated:task));
     setRecord(previous => previous?.plan ? { ...previous, plan: { ...previous.plan, tasks: previous.plan.tasks.map(item => item.id === updated.id ? updated : item) } } : previous);
     teamApi.getTeams(projectId).then(result => {if (current.current === projectId) setTeamData(result);}).catch(failure => setError((failure as Error).message));
   }
   async function submit() {
     setSubmitting(true); setError(null);
-    try { const result = await api.createPlan(projectId, goal.trim()); if (current.current === projectId) setRecord(result); }
+    try { const result = await api.createPlan(projectId, goal.trim()); if (current.current === projectId) {setRecord(result);setHistory(previous=>[result,...previous]);} }
     catch (failure) { if (current.current === projectId) setError((failure as Error).message); }
     finally { setSubmitting(false); }
   }
@@ -72,9 +78,9 @@ export default function Planning({ lab, board = false }: { lab: Workbench; board
     setChanging(true); setError(null);
     try {
       const updated = await api.setTaskStatus(task, status);
-      if (current.current === projectId) setRecord(previous => previous?.plan ? {
+      if (current.current === projectId) {setBoardTasks(previous=>previous.map(item=>item.id===updated.id?updated:item));setRecord(previous => previous?.plan ? {
         ...previous, plan: { ...previous.plan, tasks: previous.plan.tasks.map(item => item.id === task.id ? updated : item) },
-      } : previous);
+      } : previous);}
     } catch (failure) {
       if (current.current === projectId) {
         setError((failure as Error).message);
@@ -97,16 +103,17 @@ export default function Planning({ lab, board = false }: { lab: Workbench; board
     </div>}
     {error && <div className="product-error" role="alert">{error}</div>}
     {record?.status === 'failed' && <div className="product-error" role="alert"><strong>Planning could not complete.</strong><p>{record.error}</p><p>Your goal is retained. Check Models settings, then submit again.</p></div>}
+    {!board&&history.length>1&&<label className="planning-history">Saved plans<select aria-label="Saved product plan" value={record?.goal.id??''} onChange={e=>{const saved=history.find(item=>item.goal.id===e.target.value);if(saved){setRecord(saved);setGoal(saved.goal.goal);}}}>{history.map(item=><option value={item.goal.id} key={item.goal.id}>{item.status} · {item.draft?.title??item.plan?.title??item.goal.goal.slice(0,60)}</option>)}</select></label>}
     {!board && <form className="goal-panel" onSubmit={e => { e.preventDefault(); void submit(); }}>
       <label htmlFor="project-goal">What do you want the team to build?</label>
       <textarea id="project-goal" required maxLength={12000} value={goal} disabled={pending || submitting || loading} onChange={e => setGoal(e.target.value)} placeholder="Add authentication with registration, login, password reset and role-based access." />
       <div className="goal-actions"><span>Engineering effort will be estimated, not guaranteed.</span><button className="button primary" disabled={loading || submitting || pending || !goal.trim() || !lab.connected}>{pending || submitting ? <Loader2 className="spin" size={15} /> : <Plus size={15} />}{pending || submitting ? 'Planning…' : 'Plan with CodeOps'}</button></div>
-      {plan && <p className="small muted">Submitting a new goal creates a new plan. This view shows the latest plan; previous plans remain saved.</p>}
+      {(plan||record?.draft) && <p className="small muted">Submitting a new goal creates a new plan. This view shows the latest plan; previous plans remain saved.</p>}
     </form>}
     {loading ? <div className="planning-placeholder"><Loader2 className="spin" size={18} /> Loading saved plan…</div> : pending ?
-      <div className="planning-placeholder" role="status"><Loader2 className="spin" size={20} /><div><strong>{record?.status === 'queued' ? 'Your goal is queued' : 'CodeOps is planning your project'}</strong><p>Preparing epics, tasks and acceptance criteria. You can refresh; the request stays saved.</p><small>Keep the CodeOps worker and configured model service available.</small></div></div> : plan ? <>
-        {board ? <div className="board-context"><span>{plan.title}</span><span>{filtersActive ? `${filteredTasks.length} of ${plan.tasks.length} tasks` : `${plan.epics.length} epics`}<span className="board-context-divider">·</span>~{hours(plan.estimated_hours)} estimated effort</span></div> : <><div className="plan-heading"><div><span className="tiny-label">PROJECT PLAN</span><h2>{plan.title}</h2><p>{plan.summary}</p></div><button className="button quiet" onClick={() => lab.setView('board')}>Open board <ArrowRight size={15} /></button></div>
-        <div className="plan-totals"><span><Layers3 size={15} /><strong>{plan.epics.length}</strong> Epics</span><span><CheckSquare size={15} /><strong>{plan.tasks.length}</strong> Tasks</span><span><Clock3 size={15} />Estimated effort <strong>~{hours(plan.estimated_hours)}</strong></span></div>
+      <div className="planning-placeholder" role="status"><Loader2 className="spin" size={20} /><div><strong>{record?.status === 'queued' ? 'Your goal is queued' : 'Analyzing repository and preparing a draft'}</strong><p>Preparing epics, tasks and acceptance criteria. You can refresh; the request stays saved.</p><small>Keep the CodeOps worker and configured model service available.</small></div></div> : !board&&record?.status==='draft'&&record.draft?<><PlanningBasisView basis={record.planning_basis}/><DraftPlanEditor record={record} onChange={updated=>{if(current.current!==updated.goal.project_id)return;setRecord(updated);setHistory(previous=>previous.map(item=>item.goal.id===updated.goal.id?updated:item));void api.getApprovedTasks(projectId).then(result=>{if(current.current===projectId)setBoardTasks(result.tasks);}).catch(failure=>{if(current.current===projectId)setError((failure as Error).message);});}}/></> : plan ? <>
+        {board ? <div className="board-context"><span>{plan.title}</span><span>{filtersActive ? `${filteredTasks.length} of ${plan.tasks.length} tasks` : 'Approved tasks'}<span className="board-context-divider">·</span>~{hours(plan.estimated_hours)} estimated effort</span></div> : <><div className="plan-heading"><div><span className="tiny-label">APPROVED PLAN{record?.legacy_approved?' · legacy':''}</span><h2>{plan.title}</h2><p>{plan.summary}</p></div><button className="button quiet" onClick={() => lab.setView('board')}>Open board <ArrowRight size={15} /></button></div>
+        <PlanningBasisView basis={record?.planning_basis}/>{record?.materialization&&Object.keys(record.materialization).length>0&&<p className="plan-materialization">{Object.entries(record.materialization).map(([ref,key])=>`${ref} → ${key}`).join(' · ')}</p>}<div className="plan-totals"><span><Layers3 size={15} /><strong>{plan.epics.length}</strong> Epics</span><span><CheckSquare size={15} /><strong>{plan.tasks.length}</strong> Tasks</span><span><Clock3 size={15} />Estimated effort <strong>~{hours(plan.estimated_hours)}</strong></span></div>
         <p className="estimate-notice">{plan.estimate_notice}</p><details><summary>Planning model log</summary><ModelTrace items={record?.model_invocations}/></details></>}
         {board ? <div className="engineering-board">{boardColumns.map(column => {
           const tasks = filteredTasks.filter(task => task.status === column.status);
@@ -122,7 +129,7 @@ export default function Planning({ lab, board = false }: { lab: Workbench; board
           {plan.tasks.filter(task => task.epic_id === epic.id).map(task => <button className="engineering-task-row" key={task.id} onClick={() => setSelected(task.id)}><span className="task-key">{task.key}</span><strong>{task.title}</strong><span className={`priority priority-${task.priority}`}>{task.priority}</span><span>{task.technical_area}</span><span>{hours(task.estimated_hours)}</span><ArrowRight size={14} /></button>)}
         </section>)}</div>}
         {!board && !!plan.assumptions.length && <details className="plan-assumptions"><summary>Planning assumptions · {plan.assumptions.length}</summary><ul>{plan.assumptions.map((item, index) => <li key={index}>{item}</li>)}</ul></details>}
-      </> : <div className="planning-placeholder"><Layers3 size={22} /><div><strong>No project plan yet</strong><p>{board ? 'Create a plan to organize engineering tasks on this board.' : 'Describe a goal above to generate your first plan.'}</p>{board && <button className="button quiet" onClick={() => lab.setView('planning')}>Go to planning <ArrowRight size={14} /></button>}</div></div>}
+      </> : <div className="planning-placeholder"><Layers3 size={22} /><div><strong>No project plan yet</strong><p>{board ? 'Approve a draft in Planning to create work items. Existing approved work stays on this board.' : 'Describe a goal above to generate your first plan.'}</p>{board && <button className="button quiet" onClick={() => lab.setView('planning')}>Go to planning <ArrowRight size={14} /></button>}</div></div>}
     {selectedTask && plan && <TaskDetail task={selectedTask} tasks={plan.tasks} changing={changing} error={error} onClose={() => setSelected(null)} onStatus={status => void changeStatus(selectedTask, status)} onDependency={setSelected} onTaskChange={updateTask} />}
   </div>;
 }

@@ -1,3 +1,6 @@
+> Historical milestone: current v1 architecture and behavior are documented in
+> [architecture](architecture.md), [README](../README.md) and [demo](v1-demo.md).
+
 # Phase 5: read-only Planner with local Ollama
 
 The Planner combines the task, observed repository analysis, and bounded source

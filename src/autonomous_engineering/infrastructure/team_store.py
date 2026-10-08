@@ -59,7 +59,7 @@ class TeamStore:
     def _workspace(self,db):
         roster=[self._member(db,row) for row in db.execute(select(members).order_by(members.c.created_at,members.c.id)).mappings()]
         joined=[ProjectMembership.model_validate(row) for row in db.execute(select(memberships).order_by(memberships.c.created_at,memberships.c.id)).mappings()]
-        tasks=[self.planning._task(db,row) for row in db.execute(select(engineering_tasks).order_by(engineering_tasks.c.created_at,engineering_tasks.c.id)).mappings()]
+        tasks=[self.planning._task(db,row) for row in db.execute(select(engineering_tasks).join(goals,goals.c.id==engineering_tasks.c.plan_id).where(goals.c.status.in_(['ready','approved'])).order_by(engineering_tasks.c.created_at,engineering_tasks.c.id)).mappings()]
         from autonomous_engineering.infrastructure.task_execution_tables import execution_links
         from autonomous_engineering.infrastructure.task_store import tasks as execution_jobs
         from autonomous_engineering.domain.task_executions import ACTIVE_EXECUTION_PHASES
@@ -86,12 +86,12 @@ class TeamStore:
         ids={item.member_id for item in joined}
         squad_list=[self._squad(row) for row in db.execute(select(squads).where(squads.c.project_id==str(project_id)).order_by(squads.c.created_at,squads.c.id)).mappings()]
         revision=db.execute(select(team_revisions.c.revision).where(team_revisions.c.project_id==str(project_id))).scalar_one_or_none() or 0
-        latest=db.execute(select(goals.c.id,goals.c.status).where(goals.c.project_id==str(project_id)).order_by(goals.c.created_at.desc(),goals.c.id.desc()).limit(1)).mappings().first()
+        latest=db.execute(select(goals.c.id,goals.c.status).where(goals.c.project_id==str(project_id),goals.c.status.in_(['ready','approved'])).order_by(goals.c.created_at.desc(),goals.c.id.desc()).limit(1)).mappings().first()
         return dict(squads=squad_list,members=[item for item in global_data['members'] if item.id in ids],memberships=joined,
             tasks=sorted((item for item in global_data['tasks'] if str(item.project_id)==str(project_id)),key=lambda item:int(item.key.split('-')[1])),
             capacities=global_data['capacities'],workspace_members=global_data['members'],workspace_memberships=global_data['memberships'],
             workspace_tasks=global_data['tasks'],projects=global_data['projects'],workspace_revision=global_data['workspace_revision'],
-            project_revision=revision,current_plan_id=latest['id'] if latest and latest['status']=='ready' else None)
+            project_revision=revision,current_plan_id=latest['id'] if latest and latest['status'] in {'ready','approved'} else None)
 
     def snapshot(self,project_id):
         with self._read() as db: return self._snapshot(db,project_id)

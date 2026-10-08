@@ -79,9 +79,9 @@ application). Historical headers omit all mutation actions.
 
 Before execution, Overview shows description, neutral requirements, dependencies
 with actual statuses, owner/squad/runtime context, and execution readiness. The
-secondary pane becomes a compact task inspector with assignment controls,
-dependencies, criteria count, and not-started execution. Assignment buttons in the
-header, Overview, and inspector focus the existing inline TaskAssignmentEditor.
+secondary pane becomes a compact task inspector with owner context, dependencies,
+criteria count and not-started execution, without repeated CTAs. Header and the
+contextual Overview assignment button focus the existing TaskAssignmentEditor.
 Engineering filters new choices/recommendations to AI developer identities; Teams
 retains its existing general assignment behavior. Existing memberships,
 deterministic recommendations, capacity warnings, revisions, and assignment APIs
@@ -180,3 +180,15 @@ actions, dependency/offline blockers, first-file selection, human review, and ac
 check that compact responses preserve counts and default API contracts without
 mutating retained artifacts. Optional integration suites require their configured
 Docker/PostgreSQL/provider environments.
+
+## v1 planning and Engineering polish
+
+Planning shows provenance, editable E/T draft refs and explicit Save/Approve actions.
+Saved plan history retains immutable approved records. Board lists all approved
+tasks while another goal is drafted. See [planning](product-planning.md).
+
+Before execution, the header owns the dominant assignment/run CTA. The compact
+sidebar shows task/owner/dependencies/criteria/execution context without repeating
+buttons. Overview owns detailed readiness; assignment and dependencies are separate
+conditions. One contextual assignment CTA is retained there. Running, approval,
+review, done and historical tab behavior are unchanged.

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "autonomous-engineering"
 version = "0.1.0"
-description = "Backend for the Autonomous Software Engineering Multi-Agent System"
+description = "CodeOps engineering management and multi-agent delivery backend"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [

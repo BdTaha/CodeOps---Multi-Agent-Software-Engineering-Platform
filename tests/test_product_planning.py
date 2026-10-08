@@ -1,5 +1,6 @@
 """Product planning contracts, durable jobs and manually managed board tasks."""
 import copy
+import os
 import json
 import time
 from uuid import uuid4
@@ -7,7 +8,8 @@ from uuid import uuid4
 import pytest
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
-from sqlalchemy import select, update
+from sqlalchemy import select, update, create_engine
+from sqlalchemy.engine import make_url
 
 from autonomous_engineering.agents.planner import PlanningError
 from autonomous_engineering.agents.product_planner import ProductPlanningAgent
@@ -42,17 +44,27 @@ class Provider:
         return self.responses[len(self.contexts)-1] if self.responses else draft_data()
 
 
-@pytest.fixture
-def product(tmp_path):
+@pytest.fixture(params=['sqlite','postgresql'])
+def product(tmp_path,request):
     config = Settings(_env_file=None, environment='test', repository_root=tmp_path, workspace_root=tmp_path/'workspaces')
     source = tmp_path/'source'
     source.mkdir()
     source.joinpath('app.py').write_text('value = 1\n')
-    store = TaskStore('sqlite:///' + str(tmp_path/'planning.db'))
+    url='sqlite:///' + str(tmp_path/'planning.db')
+    root_engine=None;schema=None
+    if request.param=='postgresql':
+        if not os.environ.get('ASE_INTEGRATION_DATABASE_URL'):pytest.skip('Explicit PostgreSQL integration opt-in')
+        root_engine=create_engine(os.environ['ASE_INTEGRATION_DATABASE_URL']);schema='planning_'+uuid4().hex
+        with root_engine.begin() as db:db.exec_driver_sql(f'CREATE SCHEMA {schema}')
+        url=make_url(os.environ['ASE_INTEGRATION_DATABASE_URL']).update_query_dict({'options':'-csearch_path='+schema}).render_as_string(hide_password=False)
+    store = TaskStore(url)
     project = store.register(str(source), dict(name='Fixture project', description='Local fixture', stack=['Python']))
     planning = PlanningStore(store.engine)
     yield config, store, planning, project
     store.close()
+    if root_engine:
+        with root_engine.begin() as db:db.exec_driver_sql(f'DROP SCHEMA {schema} CASCADE')
+        root_engine.dispose()
 
 
 @pytest.mark.parametrize('issue', ['duplicate_task', 'duplicate_epic', 'unknown_epic', 'empty_epic', 'unknown_dependency',
@@ -130,7 +142,10 @@ def test_worker_api_and_status_survive_database_reopen(product):
         worker = Worker(config, store, product_plan_provider=provider)
         assert worker.run_once()
         saved = client.get(f"/projects/{project['id']}/plan").json()
-        assert saved['status'] == 'ready'
+        assert saved['status'] == 'draft' and saved['plan'] is None
+        assert client.get(f"/projects/{project['id']}/engineering-tasks").json()['tasks'] == []
+        saved = client.post(f"/product-plans/{saved['goal']['id']}/approve",json={'revision':saved['draft_revision']}).json()
+        assert saved['status'] == 'approved'
         assert saved['plan']['estimated_hours'] == 6
         assert 'not guaranteed' in saved['plan']['estimate_notice']
         tasks = saved['plan']['tasks']
@@ -149,7 +164,7 @@ def test_worker_api_and_status_survive_database_reopen(product):
         assert store.list() == []
         assert not worker.run_once()
     # A new store represents a new API process after a browser/server restart.
-    reopened = TaskStore(str(store.engine.url))
+    reopened = TaskStore(store.engine.url.render_as_string(hide_password=False))
     try:
         restored = PlanningStore(reopened.engine).latest(project['id'])
         assert restored.plan.tasks[0].status == EngineeringStatus.DONE
@@ -192,10 +207,12 @@ def test_new_plan_keeps_previous_tasks_and_increments_project_keys(product):
     first = planning.enqueue(project['id'], 'First goal')
     worker = Worker(config, store, product_plan_provider=Provider())
     worker.run_once()
+    record=planning.latest(project['id']);planning.approve(record.goal.id,record.draft_revision)
     old = planning.latest(project['id']).plan
     planning.set_status(old.tasks[0].id, EngineeringStatus.DONE, 0)
     planning.enqueue(project['id'], 'Second goal')
     worker.run_once()
+    record=planning.latest(project['id']);planning.approve(record.goal.id,record.draft_revision)
     latest = planning.latest(project['id']).plan
     assert [task.key for task in latest.tasks] == ['CO-3', 'CO-4']
     assert planning.get(first.goal.id).plan.tasks[0].status == EngineeringStatus.DONE
@@ -213,6 +230,7 @@ def test_planning_routes_reject_unknown_projects_and_cross_origin_writes(product
         assert client.post(route, json={'goal':'Authentication', 'execute':True}).status_code == 422
         planning.enqueue(project['id'], 'Authentication')
         Worker(config, store, product_plan_provider=Provider()).run_once()
+        record=planning.latest(project['id']);planning.approve(record.goal.id,record.draft_revision)
         task = planning.latest(project['id']).plan.tasks[0]
         assert client.patch(f'/engineering-tasks/{task.id}/status', json={'status':'invented', 'revision':0}).status_code == 422
         assert client.patch(f'/engineering-tasks/{task.id}/status', json={'status':'done', 'revision':0}, headers={'Origin':'https://elsewhere.test'}).status_code == 403

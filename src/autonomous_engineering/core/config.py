@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     )
 
     app_name: str = Field(
-        default="Autonomous Software Engineering Multi-Agent System",
+        default="CodeOps",
         min_length=1,
     )
     environment: Literal["development", "test", "production"] = "development"

@@ -1,3 +1,6 @@
+> Historical milestone: current v1 architecture and behavior are documented in
+> [architecture](architecture.md), [README](../README.md) and [demo](v1-demo.md).
+
 # Phase 4: Repository Analyzer and isolated inspection
 
 ## What this phase builds

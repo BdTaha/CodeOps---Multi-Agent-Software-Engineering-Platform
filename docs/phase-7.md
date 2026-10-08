@@ -1,3 +1,6 @@
+> Historical milestone: current v1 architecture and behavior are documented in
+> [architecture](architecture.md), [README](../README.md) and [demo](v1-demo.md).
+
 # Phase 7: real test execution
 
 The approved development continuation now runs `develop_implementation`,

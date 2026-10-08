@@ -16,8 +16,20 @@ export interface ProjectPlan {
 export interface PlanRecord {
   model_invocations?:import('./types').ModelInvocation[];
   goal: { id: string; project_id: string; goal: string; created_at: string };
-  status: 'queued' | 'generating' | 'ready' | 'failed'; plan: ProjectPlan | null;
+  status: 'queued' | 'generating' | 'draft' | 'approved' | 'ready' | 'failed'; plan: ProjectPlan | null;
   attempts: number; error: string | null; model: string | null;
+  draft?: ProductPlanDraft | null; draft_revision?: number | null;
+  planning_basis?: PlanningBasis | null; materialization?: Record<string,string>;
+  approved_at?: string | null; legacy_approved?: boolean;
+}
+export interface ProductPlanDraft {
+  title:string; summary:string; assumptions:string[];
+  epics:{ref:string;title:string;description:string}[];
+  tasks:{ref:string;epic_ref:string;title:string;description:string;priority:EngineeringTask['priority'];estimated_hours:number;technical_area:string;dependencies:string[];acceptance_criteria:{description:string}[]}[];
+}
+export interface PlanningBasis {
+  mode:'repository_grounded'|'goal_only';reason:string|null;inspected_files:string[];limitations:string[];
+  analysis:{architecture_summary:string;languages:string[];frameworks:string[];dependencies:string[];top_level_directories:string[];limitations:string[]}|null;
 }
 export const boardColumns: { status: EngineeringStatus; label: string }[] = [
   { status: 'backlog', label: 'Backlog' }, { status: 'planned', label: 'Planned' },

@@ -19,6 +19,7 @@ def team(product):
     config, store, planning, project = product
     planning.enqueue(project['id'], 'Fixture authentication')
     Worker(config, store, product_plan_provider=Provider()).run_once()
+    record=planning.latest(project['id']); planning.approve(record.goal.id,record.draft_revision)
     client = TestClient(create_platform_app(config, store))
     with client:
         yield client, project, planning, TeamStore(planning), store
@@ -244,6 +245,11 @@ def test_previous_plan_load_reopening_and_inactivation_are_retained(team):
     planning.enqueue(project['id'],'New fixture goal')
     config = Settings(_env_file=None,environment='test')
     Worker(config,store,product_plan_provider=Provider()).run_once()
+    assert planning.latest(project['id']).status=='draft'
+    snapshot=teams.snapshot(project['id'])
+    assert len(snapshot['tasks'])==2 and snapshot['capacities'][0].planned_load_hours==2
+    assert snapshot['current_plan_id']==str(planning.task(first['id']).plan_id)
+    record=planning.latest(project['id']); planning.approve(record.goal.id,record.draft_revision)
     assert teams.snapshot(project['id'])['capacities'][0].planned_load_hours == 2
     assert all(str(task.assignee_id) != person['id'] for task in planning.latest(project['id']).plan.tasks)
     first = client.patch(f"/engineering-tasks/{first['id']}/status",json=dict(status='done',revision=first['revision'])).json()

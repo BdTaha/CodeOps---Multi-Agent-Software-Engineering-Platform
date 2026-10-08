@@ -294,7 +294,7 @@ def test_product_invocations_persist_without_prompts_or_keys(product):
     provider=GatewayProductPlanProvider(config(),gateway(primary,fallback))
     assert run_product_plan(config(),planning,'fixture-owner',provider)
     record=planning.get(str(job.goal.id))
-    assert record.status=='ready' and len(record.model_invocations)==2 and record.model_invocations[-1].fallback_used
+    assert record.status=='draft' and len(record.model_invocations)==2 and record.model_invocations[-1].fallback_used
     trace=store.trace(str(job.goal.id));assert len(trace)==2
     assert KEY not in json.dumps(trace) and 'messages' not in json.dumps(trace) and 'Fixture goal' not in json.dumps(trace)
 

@@ -1,12 +1,13 @@
 """Product plans are distinct from autonomous coding execution tasks."""
 from enum import StrEnum
-from typing import Annotated, Self
+from typing import Annotated, Self, Literal
 from uuid import UUID
 
 from pydantic import Field, model_validator
 
 from autonomous_engineering.domain.base import DomainModel, NonBlank, Summary, UtcTimestamp
 from autonomous_engineering.domain.models import ModelInvocation
+from autonomous_engineering.domain.results import RepositoryAnalysis
 
 Title = Annotated[NonBlank, Field(max_length=200)]
 EpicRef = Annotated[str, Field(pattern=r'^E[1-9][0-9]*$')]
@@ -153,9 +154,23 @@ class ProjectPlan(DomainModel):
 
 class PlanRecord(DomainModel):
     goal: ProjectGoal
-    status: Annotated[str, Field(pattern=r'^(queued|generating|ready|failed)$')]
+    status: Annotated[str, Field(pattern=r'^(queued|generating|draft|approved|ready|failed)$')]
     plan: ProjectPlan | None
     attempts: int = Field(ge=0, le=2)
     error: str | None
     model: str | None
     model_invocations: tuple['ModelInvocation', ...] = ()
+    draft: ProductPlanDraft | None = None
+    draft_revision: int | None = None
+    planning_basis: 'PlanningBasis | None' = None
+    materialization: dict[str, str] = Field(default_factory=dict)
+    approved_at: UtcTimestamp | None = None
+    legacy_approved: bool = False
+
+
+class PlanningBasis(DomainModel):
+    mode: Literal['repository_grounded', 'goal_only']
+    analysis: RepositoryAnalysis | None = None
+    inspected_files: tuple[str, ...] = Field(default=(), max_length=40)
+    reason: Summary | None = None
+    limitations: tuple[Summary, ...] = Field(default=(), max_length=8)

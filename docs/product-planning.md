@@ -1,158 +1,93 @@
-# Goal → Project plan → Board
+# Repository-grounded draft planning
 
-CodeOps adds product planning above its existing engineering execution layer.
-A product goal is not a coding execution request. Planning does not edit files,
-run tests, assign people or agents, or create GitHub branches or pull requests.
+Product planning proposes what to deliver; coding planning determines how to
+implement one approved EngineeringTask. Both have separate human approval gates.
 
-## Architecture and data flow
+## Lifecycle and repository observations
 
-1. Select an existing registered project and submit a goal in Planning.
-2. `POST /projects/{project_id}/plans` validates the goal and saves a queued
-   `ProjectGoal` in the existing SQL database. It returns immediately with 202.
-3. The existing independent worker processes execution jobs first, then product
-   planning jobs. Product jobs have their own claim, heartbeat and fenced lease.
-   A refresh or lost HTTP connection does not own or stop model generation.
-4. `ProductPlanningAgent` calls `OllamaProductPlanProvider`, which reuses the
-   loopback-only Ollama JSON-schema adapter. The context includes the goal and
-   registered project name, description and stack, not the host repository path.
-5. Pydantic validates every required field, unique epic/task references,
-   positive finite effort estimates, valid dependencies and an acyclic graph.
-   Invalid output gets one retry with validation feedback. Two invalid results
-   fail explicitly; no missing title, estimate or acceptance criterion is filled in.
-6. A validated draft is saved atomically as epics, engineering tasks, dependencies
-   and acceptance criteria. Server-generated UUIDs, timestamps, initial Backlog
-   status and project-local `CO-N` keys are metadata, not generated feature content.
-7. The UI loads the latest goal/plan and polls while queued or generating. It
-   groups tasks by epic in Planning and by status in Board. Task details expose
-   descriptions, dependencies and acceptance criteria; empty criterion boxes are
-   requirements and do not claim that any implementation has passed.
-8. A manual status PATCH includes the task revision. A stale revision returns 409
-   and the UI reloads current data rather than overwriting another window's work.
+`queued → generating → draft → approved`, or `failed` during generation.
+The independent SQL worker retains its claim/heartbeat fence. ProductPlanningAgent
+uses the configured Model Gateway and retries invalid output once with validation
+feedback. Generation creates E/T draft refs only, never EngineeringTasks or CO
+numbers. Drafts survive restart and stay out of Board, Teams and Engineering.
+Older approved tasks remain visible when a new draft is generated.
 
-The existing `domain.tasks.TaskRecord` and `tasks` SQL table still represent
-autonomous coding execution. New `EngineeringTask` records have a nullable
-`execution_run_id` reserved for a later bridge; it remains null in this phase.
-There is no automatic EngineeringTask → Developer connection.
+The worker reuses RepositoryReader/RepositoryAnalyzer against registered source,
+read-only. Inventory is bounded to 2,000 files / 20,000 entries / depth 32. It
+prioritizes manifests and goal-relevant paths, sampling at most **40 UTF-8 files,
+64 KiB per file and 256 KiB total**. Existing filters exclude links, VCS internals,
+dependencies and build trees; planning also excludes `.env*` and paths containing
+secret, credential, token or password names. Binary/oversized files are skipped.
 
-## Persistence
+Only derived observations reach the model: sampled paths/layout, detected
+languages/frameworks, declared dependency names, testing structure, architecture
+summary and limitations. Raw source, dependency values and host paths are omitted.
+This is structural inspection, not verification of business capabilities, storage
+behavior or tests. Filename filters cannot identify all hardcoded secrets, but
+raw source is not sent in this planning phase.
 
-`PlanningStore` shares `TaskStore.engine` and SQLAlchemy metadata. It adds:
+Durable `planning_basis` records `repository_grounded`, analysis, inspected files
+and limitations. Missing/unregistered/unsupported roots yield `goal_only` plus a
+reason, without invented facts. Inventory/access/limit errors and unexpected bugs
+fail visibly instead of silently falling back. Provenance is inspection-time
+evidence; source changes require a new goal for fresh product observations.
+Execution performs its own snapshot analysis before coding approval.
 
-- `product_goals`: goal, generation status, lease, attempt count, model, error,
-  and plan title/summary/assumptions.
-- `product_epics`: ordered plan epics.
-- `engineering_tasks`: project-local task number, epic, metadata, status and revision.
-- `engineering_task_dependencies`: task-to-task references.
-- `engineering_acceptance_criteria`: ordered task requirements.
+## Editing and authoritative validation
 
-New tables are added to the current SQLite/PostgreSQL schema without replacing
-or deleting execution tables. At most one plan may be active per project.
-Creating another plan retains earlier rows and continues project task numbering.
-The first UI shows the latest plan; it does not yet include a plan-history picker.
-An interrupted worker lease becomes a clear failed goal. Submit again to retry.
+Edit plan title/summary/assumptions, epic title/description, and task title,
+description, priority, estimate, area, epic, dependencies and criteria. Add/delete
+or move tasks; add/delete epics. Deletion removes dangling dependencies; deleting
+an epic deletes its tasks. Save before approval. Dependency selection supports
+Ctrl/Cmd for multiple choices. Invalid intermediate browser edits are recoverable.
+
+The backend validates the entire graph: unique E/T refs, existing epic membership,
+nonempty epics, valid unique dependencies, no self-dependency/cycles, nonempty
+criteria, finite estimates >0 and ≤24h, allowed priorities/areas, 1–8 epics and
+1–32 tasks. Invalid Save returns 422 without persisting anything. Estimates are
+rough engineering effort, not guaranteed delivery time.
+
+Save includes the expected revision and increments it. Stale edits/approval
+return **409**; Reload saved draft is explicit. Draft polling does not overwrite
+unsaved edits. Approval binds the exact persisted revision, not a browser copy.
+
+## Storage and atomic approval
+
+Additive draft tables: `product_plan_drafts`, `product_plan_draft_epics`,
+`product_plan_draft_tasks`, `product_plan_draft_dependencies`,
+`product_plan_draft_criteria`, `product_plan_draft_versions`. Ordered epics and task
+scalar fields are separate from normalized dependencies/criteria; immutable
+revision snapshots preserve editing history alongside provenance.
+
+**Approve Plan & Create Work Items** takes the existing workspace/project write
+fence, rereads the goal, checks draft state/revision, revalidates saved content,
+allocates project-local CO numbers, inserts permanent epics/tasks/dependencies/
+criteria, and records timestamp and T→CO mapping in one transaction. SQLite and
+PostgreSQL use the existing transactional locks. Failure rolls everything back;
+concurrent/repeated approval cannot duplicate tasks or consume numbers. Initial
+status is Backlog. Approval neither assigns nor starts execution.
+
+Approved draft/provenance are immutable history; normal task status/assignment
+changes remain available. Different planned work requires a new goal/draft.
+Tables initialize within the existing startup migration fence, including already
+migrated databases, without resetting any data. Legacy `ready` goals are read as
+approved and marked `legacy_approved`; existing SQL statuses, task IDs, assignments
+and history remain unchanged. Their provenance is unknown/goal-only, never
+falsely grounded. Back up SQL storage and retained workspaces before upgrading,
+and restart API/worker/preview services together.
 
 ## API
 
-| Method | Route | Behavior |
+| Method | Route | Body / result |
 | --- | --- | --- |
-| POST | `/projects/{project_id}/plans` | Queue `{"goal":"…"}`; return goal status |
-| GET | `/projects/{project_id}/plan` | Latest goal and its plan, or null before the first goal |
-| GET | `/projects/{project_id}/engineering-tasks` | Tasks from the latest plan |
-| GET | `/engineering-tasks/{task_id}` | Persisted individual task |
-| PATCH | `/engineering-tasks/{task_id}/status` | `{"status":"planned","revision":0}` |
+| POST | `/projects/{id}/plans` | `{goal}`; 202 queued record |
+| GET | `/projects/{id}/plan` | Latest record, or null |
+| GET | `/projects/{id}/plans` | Retained records, newest first |
+| GET | `/product-plans/{id}` | Saved record/revision |
+| PUT | `/product-plans/{id}/draft` | `{revision,draft}`; next revision |
+| POST | `/product-plans/{id}/approve` | `{revision}`; approved record/mapping |
+| GET | `/projects/{id}/engineering-tasks` | All approved tasks |
 
-Statuses are `backlog`, `planned`, `in_progress`, `review`, `done`. Changes are
-manual and can move in either direction. Dependencies are planning references,
-not automatic restrictions on manual status changes. Priority is low, medium,
-high or urgent. Areas are Backend, Frontend, Database, DevOps, QA or General.
-
-## Run and verify
-
-Keep Ollama running and configure a locally pulled model in `ASE_OLLAMA_MODEL`.
-The same model currently powers execution and product planning. Build the UI,
-then start the existing API and worker in two terminals from the project root:
-
-```powershell
-.\scripts\frontend.ps1 build
-.\scripts\run-platform.ps1 api
-# Second terminal:
-.\scripts\run-platform.ps1 worker
-```
-
-Open http://127.0.0.1:8765/ui/. Select a project and enter:
-
-> Add authentication with registration, login, password reset and role-based access.
-
-Click **Plan with CodeOps**. Inspect epics and task details, refresh to verify
-persistence, open Board and change a task status. Refresh again to verify it.
-If a request remains queued, start the worker. Model failures appear clearly on
-the planning page. The coding workflow is still available under Engineering,
-with Code review, Results, and Metrics & history alongside it. GitHub import is
-still available in the existing engineering overview; delivery remains in Results.
-Execution preview data remains explicitly labelled and is not used for planning.
-
-```powershell
-.\.venv\Scripts\python.exe -m pytest tests/test_product_planning.py -q
-.\.venv\Scripts\python.exe -m pytest -q
-.\scripts\frontend.ps1 build
-```
-
-Tests use explicitly isolated fixture providers, not production fallback plans.
-They cover invalid outputs, bounded retries, dependency cycles, persistence across
-reopen, independent worker completion, lease fencing, status conflicts and origin
-checks. The existing execution tests exercise the preserved coding workflow.
-
-## Limits and next phase
-
-Estimates are rough engineering effort, not guaranteed dates or team capacity.
-Plans need human inspection; schema validation cannot guarantee completeness or
-model quality. This phase uses the goal and project metadata, without repository
-analysis by the product planner. Large goals are bounded to 8 epics and 32 tasks.
-There are no accounts, squads, assignments, learning, sprint optimization,
-preview deployment, approval bridge, automatic merge or deployment.
-
-Newly generated tasks are bounded to 24 estimated hours each so large work must
-be split. The model is encouraged to prefer smaller tasks. Older saved estimates
-are still readable. This bounds size; it does not establish estimate accuracy.
-
-The next phase should let a person refine the plan and select one EngineeringTask
-for an explicitly approved ExecutionRun, carrying its acceptance criteria into
-the existing coding planner. This bridge is deliberately not implemented here.
-
-## Files added or modified in this phase
-
-Added:
-
-```text
-src/autonomous_engineering/domain/product_planning.py
-src/autonomous_engineering/agents/product_planner.py
-src/autonomous_engineering/infrastructure/ollama_product.py
-src/autonomous_engineering/infrastructure/planning_store.py
-src/autonomous_engineering/application/product_planning.py
-src/autonomous_engineering/api/planning.py
-frontend/src/productTypes.ts
-frontend/src/productApi.ts
-frontend/src/ProjectHome.tsx
-frontend/src/Planning.tsx
-tests/test_product_planning.py
-docs/product-planning.md
-```
-
-Modified:
-
-```text
-src/autonomous_engineering/platform.py
-src/autonomous_engineering/application/worker.py
-src/autonomous_engineering/infrastructure/ollama.py
-frontend/src/App.tsx
-frontend/src/Dashboard.tsx
-frontend/src/types.ts
-frontend/src/useWorkbench.ts
-frontend/src/styles.css
-frontend/index.html
-README.md
-```
-
-The shared Ollama adapter keeps its existing execution defaults and now permits
-product-specific output limits and preservation of bounded validation diagnostics.
-The remaining uncommitted developer/reviewer changes predate this product phase.
+Writes preserve local-origin checks. Missing resources return 404, invalid drafts
+422, stale/non-draft mutations 409. See [execution bridge](task-execution-bridge.md)
+and [manual demo](v1-demo.md).
