@@ -32,9 +32,10 @@ contains tasks awaiting human review. Empty filters show a compact message and
 Show all work; they retain the selected task. History loads existing per-task run
 links in bounded groups and shows standalone legacy runs too.
 
-The secondary pane is 240–260px on desktop. The Engineering-only global sidebar
-can collapse into a 60px icon rail; the user choice persists locally and explicit
-expansion is respected on later visits. Planning and Teams retain their own layout.
+The secondary pane is 240–260px on desktop. The global sidebar defaults to a
+60px icon rail in every section. An arrow at its top expands or collapses it; the
+choice persists locally across navigation and reloads, including Board. Existing
+Engineering sidebar preferences are retained. Planning and Teams retain their own layout.
 Arrow keys, Home, and End navigate the accessible tabs.
 
 Code Review's diff and findings now live in Diff and Review. Results' reports,
