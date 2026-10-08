@@ -1,5 +1,5 @@
 export type View = 'projects' | 'planning' | 'board' | 'teams' | 'workspace' | 'review' | 'results' | 'metrics' | 'models';
-export interface ModelInvocation { purpose:string; provider:string; model:string; outcome:string; fallback_used:boolean; fallback_reason:string|null; latency_ms:number; input_tokens:number|null; output_tokens:number|null }
+export interface ModelInvocation { purpose:string; provider:string; provider_name?:string|null; model:string; outcome:string; fallback_used:boolean; fallback_reason:string|null; latency_ms:number; input_tokens:number|null; output_tokens:number|null }
 export type Agent = 'supervisor' | 'repository_analyzer' | 'planner' | 'developer' | 'tester' | 'reviewer';
 export type Status = 'waiting' | 'running' | 'succeeded' | 'failed' | 'approval' | 'unavailable' | 'skipped';
 export interface Project { id: string; name: string; path: string; description: string; stack: string[] }

@@ -3,12 +3,15 @@
 from typing import Literal
 from pathlib import Path
 
-from pydantic import Field, field_validator, SecretStr
+from pydantic import Field, field_validator, SecretStr, PrivateAttr
 from urllib.parse import urlsplit
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    _model_settings_store: object = PrivateAttr(default=None)
+    model_settings_locked: bool = False
+    model_settings_encryption_key: SecretStr | None = Field(default=None, repr=False)
     model_config = SettingsConfigDict(
         env_prefix="ASE_",
         env_file=".env",

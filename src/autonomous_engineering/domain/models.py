@@ -23,7 +23,8 @@ class ModelRequest(BaseModel):
 class ModelInvocation(BaseModel):
     model_config = ConfigDict(extra='forbid')
     purpose: str
-    provider: Literal['nvidia', 'ollama']
+    provider: str
+    provider_name: str | None = None
     model: str
     outcome: str
     fallback_used: bool = False
@@ -37,7 +38,7 @@ class ModelInvocation(BaseModel):
 
 class ModelResponse(BaseModel):
     content: str
-    provider: Literal['nvidia', 'ollama']
+    provider: str
     model: str
     latency_ms: float = Field(default=0, ge=0)
     request_id: str | None = None

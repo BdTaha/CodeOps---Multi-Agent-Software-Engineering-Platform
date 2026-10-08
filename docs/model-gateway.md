@@ -16,7 +16,7 @@ model, latency, optional request ID, and optional reported token usage.
 No usage or cost is invented. Missing usage remains null.
 
 `infrastructure/model_gateway.py` selects exactly one primary and at most one
-sequential Ollama fallback. Each adapter receives a deep copy of the equivalent
+sequential fallback (any saved supported connection, or Ollama in environment mode). Each adapter receives a deep copy of the equivalent
 logical request; only the routed model changes. There is no provider racing,
 load balancing, purpose-dependent routing, or automatic transport retry.
 
@@ -88,16 +88,18 @@ differ; arbitrary custom endpoints are intentionally unsupported in this phase.
 Explicit NVIDIA without a key may fall back to a configured Ollama model when
 fallback is enabled; it records `not_configured`. An invalid/nonworking key is
 an authentication failure and **never** concealed with fallback.
-Fallback is disabled when Ollama is primary; only Ollama is supported as the
-fallback provider. Routing is environment-only, with no database preferences.
-Restart the API and engineering worker after changing it; the preview worker
-does not invoke models. Existing product data needs no schema migration.
+In environment mode, fallback is disabled when Ollama is primary and only Ollama
+is supported as fallback. Saved settings extend this to any supported connection,
+including another model on the same protocol. Saved routing takes precedence over
+environment routing until **Use environment settings** is selected. Settings edits
+apply to new model operations without restart; environment edits require API/worker
+restart. The preview worker does not invoke models. See [provider settings](provider-settings.md).
 
 ## Fallback and validation matrix
 
 | Primary outcome | Fallback |
 | --- | --- |
-| Connection/DNS/HTTP connection failure | Yes, if enabled and local model configured |
+| Connection/DNS/HTTP connection failure | Yes, if enabled and fallback model configured |
 | Provider timeout | Yes |
 | HTTP 429 | Yes (`rate_limited`) |
 | HTTP 500, 502, 503, 504 | Yes (`unavailable`) |
@@ -123,8 +125,9 @@ require actual artifact evidence. Semantic evidence mapping can only create
 ## Status and observability
 
 `GET /system/models` and **Settings · Models** show safe primary/fallback model
-configuration, compatibility mode, and policy. Settings are read-only, with no
-browser credential field. Backend key detection is a boolean, never a key value.
+configuration, compatibility mode, and policy. The settings screen supports saved
+connections and routing. Browser key fields are write-only; backend key detection
+is a boolean, never a key value.
 Ollama status uses only local `GET /api/tags`, cached for 15 seconds with a
 three-second timeout; it checks the selected model, without generation or pull.
 

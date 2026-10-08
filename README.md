@@ -5,13 +5,15 @@ Its default experience turns a project goal into persisted epics and engineering
 dependencies, acceptance criteria and a manually managed board. See [product planning](docs/product-planning.md).
 Teams adds shared workspace identities, project memberships, squads, skills, global planning capacity,
 task ownership and explainable assignment suggestions. See [teams and capacity](docs/teams-and-capacity.md).
-It analyzes repositories, plans through a shared NVIDIA NIM/Ollama model gateway, applies approved changes to isolated snapshots,
+It analyzes repositories, plans through a configurable model gateway, applies approved changes to isolated snapshots,
 runs tests in Docker, reviews results and performs bounded repairs. SQL-backed tasks and independent
 workers retain history and progress across refresh and restart.
 The intended cloud route is NVIDIA NIM with `moonshotai/kimi-k3` and local Ollama
 fallback for availability failures only. Existing Ollama-only environments remain
-compatible. **Settings · Models** shows safe routing/status; keys stay in backend
-environment configuration. See [model gateway setup and policy](docs/model-gateway.md).
+compatible. **Settings · Models** lets users add NVIDIA, Ollama, OpenAI-compatible,
+Anthropic, Gemini, and custom API connections, load models, and apply routing without
+restarting workers. Credentials are encrypted on the backend. See
+[provider settings](docs/provider-settings.md) and [gateway policy](docs/model-gateway.md).
 
 ## Quick start on Windows
 
@@ -27,8 +29,9 @@ docker build -t ase-runner:local -f containers/runner.Dockerfile .
 
 Set `ASE_OLLAMA_MODEL=qwen2.5-coder:3b` in `.env` and keep Ollama running.
 This retains local-only compatibility mode. To enable NVIDIA/Kimi K3 instead,
-set the primary route and backend key shown in [model gateway setup](docs/model-gateway.md),
-then restart API/worker. You can keep Ollama as the explicit fallback.
+add a NVIDIA connection in **Settings · Models**, enter your key, select the model,
+and click **Apply routing**. You can keep Ollama as the explicit fallback.
+Environment-based setup is also supported; environment edits require API/worker restart.
 Docker is needed for container-based coding tests; goal planning and the board
 can run with only Ollama, the API and the worker.
 Run the API and worker in separate terminals:

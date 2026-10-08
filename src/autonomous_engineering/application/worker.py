@@ -27,6 +27,8 @@ class Worker:
     def __init__(self, settings, store=None, development_provider=None, review_provider=None, product_plan_provider=None, coding_plan_provider=None, evidence_provider=None):
         self.config = settings
         self.store = store or TaskStore(settings.database_url.get_secret_value())
+        from autonomous_engineering.infrastructure.model_settings import attach_model_settings
+        attach_model_settings(settings, self.store.engine)
         self.owner = str(uuid4())
         self.development_provider = development_provider
         self.review_provider = review_provider

@@ -19,6 +19,8 @@ def create_platform_app(settings=None, store=None):
     app = create_app(config)
     app.add_middleware(TrustedHostMiddleware,allowed_hosts=['localhost','127.0.0.1','testserver'])
     app.state.task_store = store or TaskStore(config.database_url.get_secret_value())
+    from autonomous_engineering.infrastructure.model_settings import attach_model_settings
+    attach_model_settings(config, app.state.task_store.engine)
     original_lifespan = app.router.lifespan_context
     @asynccontextmanager
     async def lifespan(application):

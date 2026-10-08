@@ -50,7 +50,7 @@ class HttpTransport:
             status = exc.code
             exc.close()
             if status in (401, 403):
-                error = ProviderAuthenticationError(self.provider, f'{self.provider} authentication failed. Check ASE_NVIDIA_API_KEY.' if self.provider == 'nvidia' else 'Ollama authentication failed.')
+                error = ProviderAuthenticationError(self.provider, f'{self.provider} authentication failed. Check ASE_NVIDIA_API_KEY.' if self.provider == 'nvidia' else f'{self.provider} authentication failed. Check the saved API key.')
             elif status == 429:
                 error = ProviderRateLimited(self.provider, f'{self.provider} is rate limited.')
             elif status in (500, 502, 503, 504):
