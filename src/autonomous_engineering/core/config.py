@@ -34,6 +34,10 @@ class Settings(BaseSettings):
     docker_executable: str = Field(default="docker", min_length=1, max_length=4096)
     worker_poll_seconds: float = Field(default=1, gt=0, le=30)
     lease_seconds: int = Field(default=60, ge=15, le=600)
+    preview_python_image: str = Field(default='codeops-preview-python:local', min_length=1, max_length=300)
+    preview_node_image: str = Field(default='codeops-preview-node:local', min_length=1, max_length=300)
+    max_active_previews: int = Field(default=3, ge=1, le=10)
+    preview_poll_seconds: float = Field(default=2, gt=0, le=30)
     github_token: SecretStr | None = None
     repository_root: Path = Path(".")
 

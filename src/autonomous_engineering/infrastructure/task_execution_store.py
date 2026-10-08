@@ -113,6 +113,8 @@ class TaskExecutionStore:
             freeze_requirements(db,state.task.task_id,task.acceptance_criteria)
             now = utc_now().isoformat()
             if feedback:
+                from autonomous_engineering.infrastructure.preview_tables import stop_execution_previews
+                stop_execution_previews(db,previous['execution_task_id'])
                 db.execute(update(execution_links).where(execution_links.c.execution_task_id == previous['execution_task_id'])
                     .values(review_state='changes_requested', reviewed_at=now, feedback=feedback))
             db.execute(insert(execution_links).values(execution_task_id=str(state.task.task_id), run_id=str(state.run_id),
@@ -136,6 +138,11 @@ class TaskExecutionStore:
                 raise PlanningConflict('Only the latest successful result in Review can be accepted.')
             # Reuse existing evidence/workspace validation; acceptance is not delivery.
             receipt(WorkflowState.model_validate(context['execution']['snapshot']), self.config.workspace_root)
+            from autonomous_engineering.infrastructure.preview_tables import execution_previews
+            from autonomous_engineering.domain.previews import ACTIVE_PREVIEWS
+            if db.execute(select(execution_previews.c.id).where(execution_previews.c.execution_task_id==str(execution_id),
+                    execution_previews.c.status.in_(ACTIVE_PREVIEWS))).first():
+                raise PlanningConflict('Stop the active preview and wait for confirmed cleanup before accepting this result.')
             now = utc_now().isoformat()
             from autonomous_engineering.infrastructure.acceptance_store import record_acceptance
             record_acceptance(db,execution_id,evidence_version,unresolved_acknowledged,now)

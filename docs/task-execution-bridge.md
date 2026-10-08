@@ -223,3 +223,7 @@ final artifacts to frozen per-run criteria, records human acknowledgment for
 unresolved evidence, and preserves historical packages. Its guide documents the
 conservative mapping rules and remaining limitations. Human acceptance and
 delivery remain separate.
+
+The subsequent [local preview layer](local-previews.md) adds isolated ephemeral
+review environments. Previewing never verifies criteria automatically or delivers
+source; acceptance requires confirmed preview cleanup.

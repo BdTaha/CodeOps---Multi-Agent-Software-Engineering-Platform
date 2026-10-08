@@ -44,6 +44,10 @@ The default Acceptance review tab now maps each requirement to retained per-run
 evidence, distinguishes Verified / Supported / Unverified and conflicts, and
 requires acknowledgment for unresolved or unavailable evidence before acceptance.
 See [acceptance evidence](docs/acceptance-evidence.md).
+Project Preview settings and the review Preview tab now support isolated local
+Python/Node environments with loopback URLs, bounded lifecycle and cleanup. Run
+`./scripts/run-platform.ps1 preview` alongside API/worker after building the
+dedicated images. See [local previews](docs/local-previews.md).
 **Recommend assignments** proposes a plan; only **Apply suggested assignments** saves it.
 Team management does not require Ollama or Docker and does not start coding execution.
 

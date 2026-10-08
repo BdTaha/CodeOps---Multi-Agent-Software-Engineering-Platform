@@ -38,6 +38,10 @@ def create_platform_app(settings=None, store=None):
     from autonomous_engineering.api.task_executions import task_execution_router
     app.state.task_execution_store = TaskExecutionStore(config, app.state.task_store, app.state.team_store)
     app.include_router(task_execution_router(app.state.task_execution_store))
+    from autonomous_engineering.infrastructure.preview_store import PreviewStore
+    from autonomous_engineering.api.previews import preview_router
+    app.state.preview_store = PreviewStore(app.state.task_execution_store)
+    app.include_router(preview_router(app.state.preview_store))
     frontend = Path(__file__).resolve().parents[2] / 'frontend' / 'dist'
     if frontend.is_dir():
         app.mount('/ui',StaticFiles(directory=frontend,html=True),name='frontend')

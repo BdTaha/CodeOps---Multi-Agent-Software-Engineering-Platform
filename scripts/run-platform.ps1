@@ -1,4 +1,4 @@
-param([ValidateSet('api','worker')][string]$Service = 'api')
+param([ValidateSet('api','worker','preview')][string]$Service = 'api')
 $ErrorActionPreference = 'Stop'
 $projectRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 Push-Location -LiteralPath $projectRoot
@@ -7,6 +7,8 @@ try {
     $python = Join-Path $projectRoot '.venv/Scripts/python.exe'
     if ($Service -eq 'api') {
         & $python -m uvicorn autonomous_engineering.platform:create_platform_app --factory --host 127.0.0.1 --port 8765
+    } elseif ($Service -eq 'preview') {
+        & $python -m autonomous_engineering.application.preview_worker
     } else {
         & $python -m autonomous_engineering.application.worker
     }
