@@ -15,6 +15,10 @@ Anthropic, Gemini, and custom API connections, load models, and apply routing wi
 restarting workers. Credentials are encrypted on the backend. See
 [provider settings](docs/provider-settings.md) and [gateway policy](docs/model-gateway.md).
 
+Engineering uses a task-centered split-pane workspace with Overview, Plan, Files,
+Diff, Tests, Review, Acceptance, Preview, and History tabs. Reviews and History
+provide task entry queues; Models lives under SYSTEM. See [frontend workspace](docs/frontend.md).
+
 ## Quick start on Windows
 
 ```powershell

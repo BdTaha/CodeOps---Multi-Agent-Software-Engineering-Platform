@@ -12,7 +12,7 @@ export interface Snapshot {
   analysis: { languages: string[]; frameworks: string[]; dependencies: string[]; architecture_summary: string; important_files: string[]; relevant_files: string[]; inspected_file_count: number; limitations: string[] } | null;
   plan: Plan | null; development: { diff: string; changes: Change[]; explanation: string; limitations: string[]; approval_id: string } | null;
   changes: Change[]; executions: Execution[]; errors: { code: string; message: string }[];
-  tests: { outcome: string; summary: string; counts: { passed: number; failed: number; skipped: number } | null; executions: { command: string[]; exit_code: number | null; output_summary: string }[] } | null;
+  tests: { outcome: string; summary: string; counts: { passed: number; failed: number; skipped: number } | null; executions: { command: string[]; exit_code: number | null; output_summary: string; duration_seconds?:number; timed_out?:boolean; error?:string|null }[] } | null;
   review: { approved: boolean; summary: string; findings: { file?: string; line?: number; description: string; severity: string; recommended_fix?: string; evidence?: string | null }[] } | null;
   report: { summary: string; limitations: string[] } | null;
 }

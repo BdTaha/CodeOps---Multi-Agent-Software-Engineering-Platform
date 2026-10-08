@@ -2,8 +2,8 @@ import {useEffect,useRef,useState} from 'react';
 import {request} from './productApi';
 import PreviewSettings from './PreviewSettings';
 import type {PreviewProfile} from './PreviewSettings';
-interface Preview {id:string;execution_task_id:string;run_id:string;status:string;preview_url:string|null;base_url:string|null;ready_at:string|null;expires_at:string;logs:string;failure_reason:string|null;profile:PreviewProfile}
-interface PreviewState {profile:PreviewProfile;can_start:boolean;reason:string|null;current:Preview|null;history:Preview[]}
+export interface Preview {id:string;execution_task_id:string;run_id:string;status:string;preview_url:string|null;base_url:string|null;ready_at:string|null;expires_at:string;logs:string;failure_reason:string|null;profile:PreviewProfile}
+export interface PreviewState {profile:PreviewProfile;can_start:boolean;reason:string|null;current:Preview|null;history:Preview[]}
 const active=['queued','building','starting','ready','stopping'];
 export async function stopPreviewBeforeAcceptance(taskId:string,executionId:string) {
   let data=await request<PreviewState>(`/engineering-tasks/${taskId}/preview`);
@@ -15,10 +15,11 @@ export async function stopPreviewBeforeAcceptance(taskId:string,executionId:stri
   throw new Error('Preview cleanup is still pending. Ensure the preview worker and Docker are running, then accept again after it stops.');
 }
 export default function ExecutionPreview({taskId,projectId,executionId,revision}:{taskId:string;projectId:string;executionId:string;revision:number}) {
-  const [data,setData]=useState<PreviewState|null>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),[settings,setSettings]=useState(false);
+  const [data,setData]=useState<PreviewState|null>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),[settings,setSettings]=useState(false),[refreshKey,setRefreshKey]=useState(0);
   const restartId=useRef<string|null>(null),latest=useRef({executionId,revision});latest.current={executionId,revision};
-  useEffect(()=>{let live=true,timer:ReturnType<typeof setTimeout>;restartId.current=null;setData(null);async function poll(){try{const result=await request<PreviewState>(`/engineering-tasks/${taskId}/preview`);if(live){setData(result);const intent=restartId.current;if(intent&&result.current?.id===intent&&!active.includes(result.current.status)){restartId.current=null;if(result.can_start)await request(`/previews/${intent}/restart`,'POST',{revision:latest.current.revision,execution_task_id:latest.current.executionId});}}}catch(e){if(live)setError((e as Error).message);}finally{if(live)timer=setTimeout(poll,1500);}}void poll();return()=>{live=false;clearTimeout(timer);};},[taskId,executionId]);
-  async function action(path:string,body?:unknown,restart=false){setBusy(true);setError('');try{await request(path,'POST',body);if(restart)restartId.current=data?.current?.id??null;setData(await request<PreviewState>(`/engineering-tasks/${taskId}/preview`));}catch(e){setError((e as Error).message);}finally{setBusy(false);}}
+  useEffect(()=>{let live=true,timer:ReturnType<typeof setTimeout>;async function poll(){let repeat=false;try{const result=await request<PreviewState>(`/engineering-tasks/${taskId}/preview`);if(live){setData(result);repeat=!!result.current&&active.includes(result.current.status);const intent=restartId.current;if(intent&&result.current?.id===intent&&!active.includes(result.current.status)){restartId.current=null;if(result.can_start){await request(`/previews/${intent}/restart`,'POST',{revision:latest.current.revision,execution_task_id:latest.current.executionId});repeat=true;}}}}catch(e){if(live){setError((e as Error).message);repeat=true;}}finally{if(live&&repeat)timer=setTimeout(poll,1500);}}void poll();return()=>{live=false;clearTimeout(timer);};},[taskId,executionId,refreshKey]);
+  useEffect(()=>{restartId.current=null;setData(null);setError('');},[taskId,executionId]);
+  async function action(path:string,body?:unknown,restart=false){setBusy(true);setError('');try{await request(path,'POST',body);if(restart)restartId.current=data?.current?.id??null;setData(await request<PreviewState>(`/engineering-tasks/${taskId}/preview`));}catch(e){setError((e as Error).message);}finally{setBusy(false);setRefreshKey(value=>value+1);}}
   const current=data?.current;const ready=current?.status==='ready';
   return <section className="execution-preview" aria-label="Preview environment"><h4>Preview / Verification</h4><p className="small muted">A temporary local environment for human review. Opening it does not verify criteria or accept the result.</p>{error&&<p className="product-error" role="alert">{error}</p>}
     {!data?<p>Loading preview configuration…</p>:<><p>{current?<strong>{current.status==='ready'?'✓ Preview ready':current.status.replaceAll('_',' ')}</strong>:'No preview running.'}</p>

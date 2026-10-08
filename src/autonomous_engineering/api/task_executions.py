@@ -20,8 +20,11 @@ def task_execution_router(store):
         except ValueError as exc: raise HTTPException(422,str(exc)) from exc
 
     @router.get('/engineering-tasks/{task_id}/execution')
-    def current(task_id: UUID):
-        return call(lambda:store.snapshot(task_id))
+    def current(task_id: UUID, details: bool = True):
+        from autonomous_engineering.api.artifacts import compact_job
+        result = call(lambda:store.snapshot(task_id))
+        if not details: result['execution'] = compact_job(result['execution'])
+        return result
 
     @router.get('/engineering-tasks/{task_id}/executions')
     def history(task_id: UUID):

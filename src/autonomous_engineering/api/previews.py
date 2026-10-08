@@ -39,7 +39,12 @@ def preview_router(store):
         return dict(valid=True,runnable=body.enabled and body.preview_type!='none' and not body.requires_external_services,
             message='Schema validated only. No commands ran. External services are unsupported.' if body.requires_external_services else 'Schema validated only. Start Preview on a successful pending-review run to test startup.')
     @router.get('/engineering-tasks/{task_id}/preview')
-    def current(task_id:UUID): return call(lambda:store.snapshot(task_id))
+    def current(task_id:UUID,details:bool=True):
+        result=call(lambda:store.snapshot(task_id))
+        if not details:
+            result['history']=[{**preview,'logs':''} for preview in result['history']]
+            if result['current']: result['current']={**result['current'],'logs':''}
+        return result
     @router.post('/engineering-tasks/{task_id}/preview',status_code=202)
     def start(task_id:UUID,body:ReviewExecution,request:Request): return call(lambda:store.start(task_id,body.revision,body.execution_task_id),request)
     @router.post('/previews/{preview_id}/stop',status_code=202)

@@ -12,6 +12,7 @@ dist/
 node_modules/
 .pnpm-store/
 *.tsbuildinfo
+frontend/.test-dist/
 .env
 .env.*
 !.env.example

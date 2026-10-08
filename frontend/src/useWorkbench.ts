@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import * as api from './api';
 import type { Agent, Project, Snapshot, Status, View } from './types';
 import { agents } from './types';
+import { openRun, openTask, parseRoute } from './engineering/navigation';
 import { previewSnapshot, previewProject, previewFiles } from './preview';
 const initialProjects: Project[] = [
   { id: 'system', name: 'engineering-system', path: '.', description: 'Multi-agent platform', stack: ['Python', 'FastAPI', 'LangGraph'] },
@@ -11,8 +12,11 @@ const operationAgents = new Map(agents.map(agent => [agent.operation, agent.id])
 operationAgents.set('route_validation', 'supervisor');
 export default function useWorkbench() {
   const [view, setView] = useState<View>(() => {
+    const hash=window.location.hash;
+    if(hash.startsWith('#/engineering')){const route=parseRoute(hash);return route.mode==='reviews'?'review':route.mode==='history'?'metrics':'workspace';}
+    const linked=hash.slice(2);if(['projects','planning','board','teams','models'].includes(linked))return linked as View;
     const saved = localStorage.getItem('codeops-view');
-    return ['projects', 'planning', 'board', 'teams', 'workspace', 'review', 'results', 'metrics'].includes(saved ?? '') ? saved as View : 'projects';
+    return ['projects', 'planning', 'board', 'teams', 'workspace', 'review', 'results', 'metrics', 'models'].includes(saved ?? '') ? saved as View : 'projects';
   });
   const [preview, setPreview] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -52,7 +56,7 @@ export default function useWorkbench() {
     const agent = item.node ? operationAgents.get(item.node) : undefined;
     setActiveAgent(agent ?? null); if (agent) setSelectedAgent(agent);
     setSessionRuns(runs => [item.snapshot, ...runs.filter(run => run.task.task_id !== item.id)].slice(0, 100));
-    if (item.snapshot.workspace_path) void refreshFiles(item.id);
+    if (item.snapshot.workspace_path && view === 'results') void refreshFiles(item.id);
   }
   useEffect(() => { let alive = true;
     async function load() {
@@ -77,8 +81,8 @@ export default function useWorkbench() {
     latestTask.current = activeTask; localStorage.setItem('engineering-active-task', activeTask);
     let alive = true, timer: ReturnType<typeof setTimeout>;
     async function poll() {
-      try { const item = await api.job(activeTask!); if (alive) { accept(item); setConnected(true); }
-        if (alive && ['succeeded', 'failed', 'cancelled', 'awaiting_approval'].includes(item.phase)) { setMetrics(await api.evaluation()); timer = setTimeout(poll, 4000); }
+      try { const item = await api.job(activeTask!, false); if (alive) { accept(item); setConnected(true); }
+        if (alive && ['succeeded', 'failed', 'cancelled', 'awaiting_approval'].includes(item.phase)) { setMetrics(await api.evaluation()); }
         else if (alive) timer = setTimeout(poll, 1000);
       } catch (failure) { if (alive) { setConnected(false); setError((failure as Error).message); timer = setTimeout(poll, 4000); } }
     } void poll(); return () => { alive = false; clearTimeout(timer); };
@@ -107,7 +111,7 @@ export default function useWorkbench() {
     if (busy) return;
     setBusy('planning');
     setError(null); setPreview(false); setPreviewIndex(null); setView('workspace'); setTaskModal(false); setFilePaths([]); setApprovalId(null); setDeliveryResult(null);
-    try { const result = await api.create(path, task); setProject(result.project); setProjects(current => [result.project, ...current.filter(p => p.path !== result.project.path)]); setActiveTask(result.id); accept(await api.job(result.id)); }
+    try { const result = await api.create(path, task); setProject(result.project); setProjects(current => [result.project, ...current.filter(p => p.path !== result.project.path)]); setActiveTask(result.id); accept(await api.job(result.id)); openRun(result.id, 'plan'); }
     catch (failure) { setBusy(null); setError((failure as Error).message); }
   }
   async function approve() {
@@ -144,7 +148,7 @@ export default function useWorkbench() {
   async function openExecution(id: string, nextView: View = 'workspace') {
     try { const item = await api.job(id); setPreview(false); setPreviewIndex(null); setFilePaths([]); setDeliveryResult(null); setActiveTask(id); accept(item);
       const nextProject=projects.find(p=>p.path===item.snapshot.task.request.repository_path); if(nextProject)setProject(nextProject);
-      setView(nextView);
+      setView('workspace'); if(item.engineering_origin)openTask(item.engineering_origin.engineering_task_id,nextView==='review'?'diff':nextView==='results'?'overview':'overview',item.id);else openRun(item.id,nextView==='review'?'diff':'overview');
     } catch(failure) {setError((failure as Error).message);}
   }
   async function prepareExecutionDelivery(id: string, action: 'export'|'apply'|'github') {

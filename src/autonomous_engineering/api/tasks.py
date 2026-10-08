@@ -75,12 +75,16 @@ def task_router(config, store):
         return {'id':result['id'],'phase':result['phase'],'snapshot':result['snapshot'],'project':project}
 
     @router.get('/tasks')
-    def list_tasks(limit: int = 100):
-        return {'tasks':store.list(max(1,min(limit,500)))}
+    def list_tasks(limit: int = 100, details: bool = True):
+        from autonomous_engineering.api.artifacts import compact_job
+        items = store.list(max(1,min(limit,500)))
+        return {'tasks':items if details else [compact_job(item) for item in items]}
 
     @router.get('/tasks/{task_id}')
-    def task(task_id: UUID):
-        return get(task_id)
+    def task(task_id: UUID, details: bool = True):
+        from autonomous_engineering.api.artifacts import compact_job
+        item = get(task_id)
+        return item if details else compact_job(item)
 
     @router.get('/tasks/{task_id}/trace')
     def trace(task_id: UUID, after: int = 0):
