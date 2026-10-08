@@ -25,6 +25,14 @@ class Settings(BaseSettings):
     workspace_root: Path = Path(".workspaces")
     ollama_model: str | None = Field(default=None, min_length=1, max_length=200)
     ollama_base_url: str = "http://127.0.0.1:11434"
+    model_primary_provider: Literal['nvidia', 'ollama'] | None = None
+    model_primary_model: str | None = Field(default=None, min_length=1, max_length=200)
+    model_fallback_enabled: bool = True
+    model_fallback_provider: Literal['ollama'] = 'ollama'
+    model_fallback_model: str | None = Field(default=None, min_length=1, max_length=200)
+    nvidia_api_key: SecretStr | None = Field(default=None, repr=False)
+    nvidia_base_url: str = 'https://integrate.api.nvidia.com/v1'
+    nvidia_structured_mode: Literal['prompt', 'json_object', 'json_schema'] = 'prompt'
     planner_timeout_seconds: float = Field(default=180, gt=0, le=600, allow_inf_nan=False)
     test_timeout_seconds: float = Field(default=60, gt=0, le=300, allow_inf_nan=False)
     database_url: SecretStr = SecretStr("sqlite:///engineering.db")
@@ -40,6 +48,20 @@ class Settings(BaseSettings):
     preview_poll_seconds: float = Field(default=2, gt=0, le=30)
     github_token: SecretStr | None = None
     repository_root: Path = Path(".")
+
+    @field_validator('nvidia_base_url')
+    @classmethod
+    def official_nvidia_only(cls, value):
+        if value.rstrip('/') != 'https://integrate.api.nvidia.com/v1':
+            raise ValueError('NVIDIA must use the official HTTPS inference endpoint.')
+        return value.rstrip('/')
+
+    @field_validator('model_primary_model', 'model_fallback_model')
+    @classmethod
+    def bounded_model_id(cls, value):
+        if value is not None and (not value.strip() or any(ord(c) < 32 or ord(c) == 127 for c in value)):
+            raise ValueError('Model IDs must be nonblank and contain no control characters.')
+        return value
 
     @field_validator("ollama_base_url")
     @classmethod

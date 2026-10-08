@@ -30,6 +30,8 @@ def create_platform_app(settings=None, store=None):
                 application.state.task_store.close()
     app.router.lifespan_context = lifespan
     app.include_router(task_router(config,app.state.task_store))
+    from autonomous_engineering.api.models import model_router
+    app.include_router(model_router(config))
     app.state.planning_store = PlanningStore(app.state.task_store.engine)
     app.include_router(planning_router(app.state.planning_store))
     app.state.team_store = TeamStore(app.state.planning_store)

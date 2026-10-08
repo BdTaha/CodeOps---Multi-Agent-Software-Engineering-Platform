@@ -7,6 +7,7 @@ from uuid import UUID, uuid4
 from pydantic import Field, NonNegativeFloat, NonNegativeInt, PositiveInt, model_validator
 
 from autonomous_engineering.domain.base import DomainModel, NonBlank, Summary, UtcTimestamp
+from autonomous_engineering.domain.models import ModelInvocation
 
 
 class AgentName(StrEnum):
@@ -49,6 +50,7 @@ class ExecutionRecord(DomainModel):
     model: str | None = None
     input_tokens: NonNegativeInt | None = None
     output_tokens: NonNegativeInt | None = None
+    model_invocations: tuple[ModelInvocation, ...] = ()
 
     @model_validator(mode="after")
     def validate_completion(self) -> Self:

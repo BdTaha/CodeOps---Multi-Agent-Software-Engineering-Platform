@@ -225,7 +225,7 @@ def test_ollama_connection_failures_are_retryable_without_inventing_output(sourc
     class BrokenConnection:
         def open(self, *args, **kwargs):
             raise failure
-    monkeypatch.setattr("autonomous_engineering.infrastructure.ollama.build_opener", lambda *args: BrokenConnection())
+    monkeypatch.setattr("autonomous_engineering.infrastructure.model_providers.build_opener", lambda *args: BrokenConnection())
     provider = OllamaPlanProvider(Settings(_env_file=None, ollama_model="fixture-model"))
     with pytest.raises(PlanningError) as error:
         Planner(provider).plan(RepositoryReader(source), TaskRequest(repository_path=str(source), user_request="Fix login"),

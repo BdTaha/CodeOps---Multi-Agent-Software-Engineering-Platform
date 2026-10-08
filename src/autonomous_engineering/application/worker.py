@@ -9,8 +9,8 @@ from autonomous_engineering.agents.developer import approval_identity
 from autonomous_engineering.domain.execution import ExecutionError
 from autonomous_engineering.domain.results import ReportSummary
 from autonomous_engineering.domain.tasks import TaskStatus
-from autonomous_engineering.infrastructure.ollama_developer import OllamaDevelopmentProvider
-from autonomous_engineering.infrastructure.ollama_reviewer import OllamaReviewProvider
+from autonomous_engineering.infrastructure.model_developer import GatewayDevelopmentProvider
+from autonomous_engineering.infrastructure.model_reviewer import GatewayReviewProvider
 from autonomous_engineering.infrastructure.test_process import LocalTestProcess
 from autonomous_engineering.infrastructure.docker_tests import DockerTestProcess
 from autonomous_engineering.infrastructure.task_store import TaskStore, LostLease
@@ -74,8 +74,7 @@ class Worker:
                 asyncio.run(self.plan(task_id, state))
             else:
                 options = job['options']
-                if self.config.ollama_model is None and self.development_provider is None:
-                    raise ValueError('Configure a local model before development.')
+                # Provider configuration errors are recorded by the normal agent boundary.
                 values = state.model_dump()
                 values['max_development_attempts'] = options['max_attempts']
                 state = WorkflowState.model_validate(values)
@@ -85,8 +84,8 @@ class Worker:
                     process = DockerTestProcess(self.config, options['framework'], cancelled) if options['test_backend'] == 'docker' else LocalTestProcess(
                         self.config.test_timeout_seconds, framework=options['framework'], cancel_event=cancelled)
                 result = develop_approved(state, self.config.workspace_root, job['approval'],
-                    self.development_provider or OllamaDevelopmentProvider(self.config), test_process=process,
-                    review_provider=self.review_provider or OllamaReviewProvider(self.config),
+                    self.development_provider or GatewayDevelopmentProvider(self.config), test_process=process,
+                    review_provider=self.review_provider or GatewayReviewProvider(self.config),
                     allow_repairs=options['max_attempts'] > 1, on_node_started=started,
                     on_node_completed=completed, before_write=guard)
                 self.store.checkpoint(task_id, self.owner, result, phase=result.task.status.value, kind='task_finished')

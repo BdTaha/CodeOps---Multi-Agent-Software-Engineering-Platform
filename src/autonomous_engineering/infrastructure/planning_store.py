@@ -10,7 +10,7 @@ from autonomous_engineering.domain.base import utc_now
 from autonomous_engineering.domain.product_planning import (
     EngineeringTask, Epic, PlanRecord, ProductPlanDraft, ProjectGoal, ProjectPlan,
 )
-from autonomous_engineering.infrastructure.task_store import LostLease, metadata, projects
+from autonomous_engineering.infrastructure.task_store import LostLease, metadata, projects, events
 
 goals = Table('product_goals', metadata,
     Column('id', String(36), primary_key=True),
@@ -112,7 +112,9 @@ class PlanningStore:
                 plan = ProjectPlan(id=row['id'], project_id=row['project_id'], title=row['title'], summary=row['summary'],
                     assumptions=json.loads(row['assumptions']), epics=epic_list, tasks=task_list,
                     estimated_hours=sum(task.estimated_hours for task in task_list))
-            return PlanRecord(goal=goal, status=row['status'], plan=plan, attempts=row['attempts'], error=row['error'], model=row['model'])
+            invocations = tuple(json.loads(data) for data in db.execute(select(events.c.data).where(
+                events.c.task_id == row['id'], events.c.kind == 'model_invocation').order_by(events.c.id)).scalars())
+            return PlanRecord(goal=goal, status=row['status'], plan=plan, attempts=row['attempts'], error=row['error'], model=row['model'], model_invocations=invocations)
 
     def claim(self, owner, lease_seconds):
         with self.engine.begin() as db:

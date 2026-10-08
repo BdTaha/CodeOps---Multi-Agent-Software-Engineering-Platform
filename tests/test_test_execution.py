@@ -145,8 +145,8 @@ def test_monitor_only_executes_with_explicit_choice(tmp_path, monkeypatch, conse
         return ImplementationPlan(problem_interpretation="Fixture update", steps=(
             {"description": "Change value", "files": ("app.py",)},), tests_to_run=("Run unittest",))
     monkeypatch.setattr(OllamaPlanProvider, "generate", plan)
-    monkeypatch.setattr(monitor.OllamaReviewProvider, "generate", lambda self, context: {"approved": True, "summary": "Fixture review", "findings": []})
-    monkeypatch.setattr(monitor.OllamaDevelopmentProvider, "generate", lambda self, context: FixtureDeveloper([
+    monkeypatch.setattr(monitor.GatewayReviewProvider, "generate", lambda self, context: {"approved": True, "summary": "Fixture review", "findings": []})
+    monkeypatch.setattr(monitor.GatewayDevelopmentProvider, "generate", lambda self, context: FixtureDeveloper([
         {"path": "app.py", "kind": "modified", "content": "value = 2\n", "summary": "Fixture change"}]).generate(context))
     config = Settings(_env_file=None, ollama_model="fixture:local", workspace_root=tmp_path / "workspaces")
     with TestClient(monitor.create_monitor_app(config), base_url="http://localhost") as client:

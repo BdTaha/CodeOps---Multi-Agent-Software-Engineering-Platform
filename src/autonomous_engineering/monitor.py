@@ -13,9 +13,9 @@ from pydantic import Field
 
 from autonomous_engineering.domain.base import DomainModel
 from autonomous_engineering.agents.developer import approval_identity, workspace_reader
-from autonomous_engineering.infrastructure.ollama_developer import OllamaDevelopmentProvider
+from autonomous_engineering.infrastructure.model_developer import GatewayDevelopmentProvider
 from autonomous_engineering.infrastructure.test_process import LocalTestProcess
-from autonomous_engineering.infrastructure.ollama_reviewer import OllamaReviewProvider
+from autonomous_engineering.infrastructure.model_reviewer import GatewayReviewProvider
 from autonomous_engineering.tools.repository import RepositoryError
 from autonomous_engineering.workflows.development import develop_approved
 
@@ -96,8 +96,9 @@ def create_monitor_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(status_code=409, detail="A workflow is already running.")
         if pending is None or body.approval_id != pending_id:
             raise HTTPException(status_code=409, detail="Approval is stale or already used; run planning again.")
-        if config.ollama_model is None:
-            raise HTTPException(status_code=409, detail="Configure local Ollama before development.")
+        from autonomous_engineering.infrastructure.model_gateway import model_configured
+        if not model_configured(config):
+            raise HTTPException(status_code=409, detail="No model provider configured. Configure NVIDIA NIM or local Ollama.")
         await run_lock.acquire()
         snapshot = pending
         pending = None
@@ -105,9 +106,9 @@ def create_monitor_app(settings: Settings | None = None) -> FastAPI:
         activity.update(run_id=str(snapshot.run_id), node="develop_implementation")
         try:
             job = asyncio.create_task(asyncio.to_thread(develop_approved, snapshot, config.workspace_root,
-                body.approval_id, OllamaDevelopmentProvider(config),
+                body.approval_id, GatewayDevelopmentProvider(config),
                 test_process=LocalTestProcess(config.test_timeout_seconds) if body.run_tests else None,
-                review_provider=OllamaReviewProvider(config),
+                review_provider=GatewayReviewProvider(config),
                 on_node_started=lambda node: activity.update(node=node)))
             try:
                 result = await asyncio.shield(job)

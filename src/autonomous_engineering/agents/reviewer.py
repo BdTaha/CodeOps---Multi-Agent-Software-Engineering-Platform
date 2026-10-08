@@ -152,6 +152,8 @@ class Reviewer:
             finally:
                 if usage and hasattr(self.provider, 'last_usage'):
                     total = {'model': usage[-1].get('model')}
+                    invocations = tuple(item for measured in usage for item in measured.get('model_invocations', ()))
+                    if invocations: total['model_invocations'] = invocations
                     for field in ('input_tokens', 'output_tokens'):
                         if all(type(item.get(field)) is int for item in usage):
                             total[field] = sum(item[field] for item in usage)

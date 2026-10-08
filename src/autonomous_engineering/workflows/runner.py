@@ -6,7 +6,7 @@ from autonomous_engineering.core.config import Settings
 from autonomous_engineering.tools.repository import InspectionLimits
 from pathlib import Path
 from autonomous_engineering.agents.planner import PlanProvider
-from autonomous_engineering.infrastructure.ollama import configured_provider
+from autonomous_engineering.infrastructure.model_planner import configured_provider
 
 
 async def run_workflow(

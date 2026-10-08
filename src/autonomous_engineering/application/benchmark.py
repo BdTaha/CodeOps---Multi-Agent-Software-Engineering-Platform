@@ -36,7 +36,9 @@ def run(dataset, config):
                 else:
                     store.cancel(task_id); store.settle_interrupted()
             results.append(store.get(task_id))
-        return {'model':config.ollama_model,'cases':results,'metrics':metrics(results)}
+        from autonomous_engineering.infrastructure.model_gateway import resolve_route
+        route = resolve_route(config)
+        return {'model':route.model,'provider':route.provider,'cases':results,'metrics':metrics(results)}
     finally:
         store.close()
 

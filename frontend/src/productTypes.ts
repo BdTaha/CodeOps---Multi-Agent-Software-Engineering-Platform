@@ -14,6 +14,7 @@ export interface ProjectPlan {
   tasks: EngineeringTask[]; estimated_hours: number; estimate_notice: string;
 }
 export interface PlanRecord {
+  model_invocations?:import('./types').ModelInvocation[];
   goal: { id: string; project_id: string; goal: string; created_at: string };
   status: 'queued' | 'generating' | 'ready' | 'failed'; plan: ProjectPlan | null;
   attempts: number; error: string | null; model: string | null;

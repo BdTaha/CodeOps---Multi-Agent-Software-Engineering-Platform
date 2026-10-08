@@ -72,7 +72,7 @@ def test_async_graph_reports_missing_capability_with_real_execution_records(init
     assert not result.errors[0].retryable
     assert result.executions[3].error == result.errors[0]
     assert result.report.outcome == TaskStatus.FAILED
-    assert "LLM provider" in result.report.summary
+    assert "No model provider configured" in result.report.summary
     assert result.analysis.languages == ("Python",)
     assert result.analysis.frameworks == ("FastAPI",)
     assert result.analysis.inspected_file_count == 2

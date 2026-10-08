@@ -251,7 +251,9 @@ def task_router(config, store):
     @router.get('/system/status')
     def system():
         store.list(1)
-        return {'database':store.engine.dialect.name,'model':config.ollama_model,'test_backend':config.test_backend,
+        from autonomous_engineering.infrastructure.model_gateway import resolve_route
+        route = resolve_route(config)
+        return {'database':store.engine.dialect.name,'model':route.model,'test_backend':config.test_backend,
             'active_workers':store.active_workers(config.lease_seconds*2),
             'github_configured':bool(config.github_token),'git_available':bool(shutil.which('git')),
             'docker_available':bool(shutil.which(config.docker_executable)), 'worker_command':'python -m autonomous_engineering.application.worker'}

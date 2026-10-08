@@ -114,11 +114,18 @@ class TaskStore:
         with self.engine.begin() as db:
             from autonomous_engineering.infrastructure.task_execution_tables import fence_execution, synchronize_completion
             link = fence_execution(db, task_id)
+            previous = db.execute(select(tasks.c.snapshot).where(tasks.c.id == str(task_id))).scalar_one()
+            previous_count = len(json.loads(previous).get('executions', []))
             result = db.execute(update(tasks).where(tasks.c.id == str(task_id), tasks.c.owner == owner,
                 tasks.c.lease > time.time(), tasks.c.cancel == 0).values(**values))
             if result.rowcount != 1:
                 raise LostLease("Task lease ended or cancellation was requested.")
             self.event(db, str(task_id), kind, node, {"phase": phase, "execution_count": len(state.executions) if state else None})
+            if state:
+                for record in state.executions[previous_count:]:
+                    for invocation in record.model_invocations:
+                        self.event(db, str(task_id), 'model_invocation', record.operation,
+                                   invocation.model_dump(mode='json'))
             synchronize_completion(db, link, phase)
 
     def approve(self, task_id, receipt, options):

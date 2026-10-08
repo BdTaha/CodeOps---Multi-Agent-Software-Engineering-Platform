@@ -20,7 +20,7 @@ def planner_node(provider: PlanProvider | None, limits: InspectionLimits) -> Cal
             raise ValueError("planning requires a prepared workspace and repository analysis")
         try:
             if provider is None:
-                raise PlanningError("PLANNER_NOT_CONFIGURED", "Configure an LLM provider to generate an implementation plan.")
+                raise PlanningError("PLANNER_NOT_CONFIGURED", "No model provider configured. Configure NVIDIA NIM or local Ollama to generate a plan.")
             result = Planner(provider).plan(RepositoryReader(Path(snapshot.workspace_path), limits),
                                             snapshot.task.request, snapshot.analysis)
             update = WorkflowUpdate(current_agent=AgentName.PLANNER, plan=result)

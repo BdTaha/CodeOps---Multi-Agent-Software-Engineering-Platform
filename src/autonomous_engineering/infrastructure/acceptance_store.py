@@ -95,11 +95,21 @@ class AcceptanceEvidenceStore:
             # deterministic evidence (including visible negative findings).
             if sources and any(item['status']!='verified' and not item['conflict'] for item in deterministic):
                 provider=self.provider
-                if provider is None and self.config.ollama_model:
-                    from autonomous_engineering.infrastructure.ollama_evidence import OllamaEvidenceProvider
-                    provider=OllamaEvidenceProvider(self.config)
+                from autonomous_engineering.infrastructure.model_gateway import model_configured
+                if provider is None and model_configured(self.config):
+                    from autonomous_engineering.infrastructure.model_evidence import GatewayEvidenceProvider
+                    provider=GatewayEvidenceProvider(self.config)
                 if provider:
-                    proposal=provider.generate(EvidenceContext(task=state.task.request,criteria=frozen,sources=sources))
+                    if hasattr(provider, 'trace_observer'):
+                        def observe(invocation):
+                            with self.engine.begin() as db:
+                                fence_execution(db, execution_id)
+                                self.store.event(db, execution_id, 'model_invocation', 'acceptance_evidence', invocation.model_dump(mode='json'))
+                        provider.trace_observer = observe
+                    try:
+                        proposal=provider.generate(EvidenceContext(task=state.task.request,criteria=frozen,sources=sources))
+                    finally:
+                        if hasattr(provider, 'trace_observer'): provider.trace_observer = None
             mapped=map_evidence(frozen,sources,proposal)
             with self.engine.begin() as db:
                 fence_execution(db,execution_id)

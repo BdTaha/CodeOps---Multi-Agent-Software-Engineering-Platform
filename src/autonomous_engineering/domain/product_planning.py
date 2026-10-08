@@ -6,6 +6,7 @@ from uuid import UUID
 from pydantic import Field, model_validator
 
 from autonomous_engineering.domain.base import DomainModel, NonBlank, Summary, UtcTimestamp
+from autonomous_engineering.domain.models import ModelInvocation
 
 Title = Annotated[NonBlank, Field(max_length=200)]
 EpicRef = Annotated[str, Field(pattern=r'^E[1-9][0-9]*$')]
@@ -157,3 +158,4 @@ class PlanRecord(DomainModel):
     attempts: int = Field(ge=0, le=2)
     error: str | None
     model: str | None
+    model_invocations: tuple['ModelInvocation', ...] = ()

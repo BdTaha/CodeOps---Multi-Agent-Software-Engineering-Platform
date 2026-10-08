@@ -12,7 +12,7 @@ from autonomous_engineering.domain.base import DomainModel, NonBlank, Summary
 from autonomous_engineering.workflows.nodes import GraphState
 from autonomous_engineering.workflows.state import WorkflowState
 from autonomous_engineering.agents.planner import PlanProvider
-from autonomous_engineering.infrastructure.ollama import configured_provider
+from autonomous_engineering.infrastructure.model_planner import configured_provider
 
 logger = logging.getLogger(__name__)
 

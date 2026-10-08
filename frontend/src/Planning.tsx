@@ -1,4 +1,5 @@
 import TaskExecutionPanel from './TaskExecutionPanel';
+import ModelTrace from './ModelTrace';
 import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, CheckSquare, Clock3, Layers3, Loader2, Plus, X, Filter, Circle, CircleDashed, CircleDot, CircleCheck, Bot, UserRound } from 'lucide-react';
 import type { Workbench } from './useWorkbench';
@@ -95,7 +96,7 @@ export default function Planning({ lab, board = false }: { lab: Workbench; board
       {filtersActive && <button className="text-button" onClick={() => { setQuery(''); setPriorityFilter('all'); setAreaFilter('all'); setAssigneeFilter('all'); setSquadFilter('all'); }}>Clear filters</button>}
     </div>}
     {error && <div className="product-error" role="alert">{error}</div>}
-    {record?.status === 'failed' && <div className="product-error" role="alert"><strong>Planning could not complete.</strong><p>{record.error}</p><p>Your goal is retained. Check local Ollama, then submit again.</p></div>}
+    {record?.status === 'failed' && <div className="product-error" role="alert"><strong>Planning could not complete.</strong><p>{record.error}</p><p>Your goal is retained. Check Models settings, then submit again.</p></div>}
     {!board && <form className="goal-panel" onSubmit={e => { e.preventDefault(); void submit(); }}>
       <label htmlFor="project-goal">What do you want the team to build?</label>
       <textarea id="project-goal" required maxLength={12000} value={goal} disabled={pending || submitting || loading} onChange={e => setGoal(e.target.value)} placeholder="Add authentication with registration, login, password reset and role-based access." />
@@ -103,10 +104,10 @@ export default function Planning({ lab, board = false }: { lab: Workbench; board
       {plan && <p className="small muted">Submitting a new goal creates a new plan. This view shows the latest plan; previous plans remain saved.</p>}
     </form>}
     {loading ? <div className="planning-placeholder"><Loader2 className="spin" size={18} /> Loading saved plan…</div> : pending ?
-      <div className="planning-placeholder" role="status"><Loader2 className="spin" size={20} /><div><strong>{record?.status === 'queued' ? 'Your goal is queued' : 'CodeOps is planning your project'}</strong><p>Preparing epics, tasks and acceptance criteria. You can refresh; the request stays saved.</p><small>Keep the CodeOps worker and local Ollama running.</small></div></div> : plan ? <>
+      <div className="planning-placeholder" role="status"><Loader2 className="spin" size={20} /><div><strong>{record?.status === 'queued' ? 'Your goal is queued' : 'CodeOps is planning your project'}</strong><p>Preparing epics, tasks and acceptance criteria. You can refresh; the request stays saved.</p><small>Keep the CodeOps worker and configured model service available.</small></div></div> : plan ? <>
         {board ? <div className="board-context"><span>{plan.title}</span><span>{filtersActive ? `${filteredTasks.length} of ${plan.tasks.length} tasks` : `${plan.epics.length} epics`}<span className="board-context-divider">·</span>~{hours(plan.estimated_hours)} estimated effort</span></div> : <><div className="plan-heading"><div><span className="tiny-label">PROJECT PLAN</span><h2>{plan.title}</h2><p>{plan.summary}</p></div><button className="button quiet" onClick={() => lab.setView('board')}>Open board <ArrowRight size={15} /></button></div>
         <div className="plan-totals"><span><Layers3 size={15} /><strong>{plan.epics.length}</strong> Epics</span><span><CheckSquare size={15} /><strong>{plan.tasks.length}</strong> Tasks</span><span><Clock3 size={15} />Estimated effort <strong>~{hours(plan.estimated_hours)}</strong></span></div>
-        <p className="estimate-notice">{plan.estimate_notice}</p></>}
+        <p className="estimate-notice">{plan.estimate_notice}</p><details><summary>Planning model log</summary><ModelTrace items={record?.model_invocations}/></details></>}
         {board ? <div className="engineering-board">{boardColumns.map(column => {
           const tasks = filteredTasks.filter(task => task.status === column.status);
           const StatusIcon = column.status === 'backlog' ? CircleDashed : column.status === 'planned' ? Circle : column.status === 'done' ? CircleCheck : CircleDot;

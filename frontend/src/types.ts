@@ -1,8 +1,9 @@
-export type View = 'projects' | 'planning' | 'board' | 'teams' | 'workspace' | 'review' | 'results' | 'metrics';
+export type View = 'projects' | 'planning' | 'board' | 'teams' | 'workspace' | 'review' | 'results' | 'metrics' | 'models';
+export interface ModelInvocation { purpose:string; provider:string; model:string; outcome:string; fallback_used:boolean; fallback_reason:string|null; latency_ms:number; input_tokens:number|null; output_tokens:number|null }
 export type Agent = 'supervisor' | 'repository_analyzer' | 'planner' | 'developer' | 'tester' | 'reviewer';
 export type Status = 'waiting' | 'running' | 'succeeded' | 'failed' | 'approval' | 'unavailable' | 'skipped';
 export interface Project { id: string; name: string; path: string; description: string; stack: string[] }
-export interface Execution { execution_id: string; agent: string; operation: string; status: string; input_summary: string; output_summary: string; duration_seconds: number; started_at: string; ended_at: string; attempt: number; error?: { code: string; message: string } | null }
+export interface Execution { model_invocations?:ModelInvocation[]; execution_id: string; agent: string; operation: string; status: string; input_summary: string; output_summary: string; duration_seconds: number; started_at: string; ended_at: string; attempt: number; error?: { code: string; message: string } | null }
 export interface Plan { problem_interpretation: string; steps: { description: string; files: string[] }[]; risks: string[]; tests_to_run: string[]; context_files: string[]; limitations: string[] }
 export interface Change { path: string; kind: string; summary: string }
 export interface Snapshot {

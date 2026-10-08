@@ -4,8 +4,9 @@ import threading
 
 from autonomous_engineering.agents.planner import PlanningError
 from autonomous_engineering.agents.product_planner import ProductPlanningAgent
-from autonomous_engineering.infrastructure.ollama_product import OllamaProductPlanProvider
+from autonomous_engineering.infrastructure.model_product import GatewayProductPlanProvider
 from autonomous_engineering.infrastructure.task_store import LostLease
+from autonomous_engineering.infrastructure.model_gateway import model_configured
 
 logger = logging.getLogger(__name__)
 
@@ -30,9 +31,21 @@ def run_product_plan(config, store, owner, provider=None, worker_seen=None):
     thread.start()
     agent = None
     try:
-        if provider is None and config.ollama_model is None:
-            raise PlanningError('MODEL_NOT_CONFIGURED', 'Configure ASE_OLLAMA_MODEL and start local Ollama to generate a project plan.')
-        agent = ProductPlanningAgent(provider or OllamaProductPlanProvider(config))
+        if provider is None and not model_configured(config):
+            raise PlanningError('MODEL_NOT_CONFIGURED', 'No model provider configured. Configure NVIDIA NIM or local Ollama through the environment.')
+        agent = ProductPlanningAgent(provider or GatewayProductPlanProvider(config))
+        if hasattr(agent.provider, 'trace_observer'):
+            def observe(invocation):
+                from sqlalchemy import select
+                from autonomous_engineering.infrastructure.planning_store import goals
+                from autonomous_engineering.infrastructure.task_store import TaskStore
+                import time
+                with store.engine.begin() as db:
+                    owned = db.execute(select(goals.c.id).where(goals.c.id == job['id'], goals.c.owner == owner,
+                        goals.c.status == 'generating', goals.c.lease > time.time())).scalar_one_or_none()
+                    if not owned: raise LostLease('Planning lease ended during model invocation.')
+                    TaskStore.event(db, job['id'], 'model_invocation', None, invocation.model_dump(mode='json'))
+            agent.provider.trace_observer = observe
         draft = agent.plan(job['goal'], store.project(job['project_id']))
         store.complete(job['id'], owner, draft, agent.attempts, getattr(agent.provider, 'model', None))
     except LostLease:
@@ -46,6 +59,8 @@ def run_product_plan(config, store, owner, provider=None, worker_seen=None):
         except LostLease:
             logger.warning('Discarded failed plan after lease loss goal_id=%s', job['id'])
     finally:
+        if agent and hasattr(agent.provider, 'trace_observer'):
+            agent.provider.trace_observer = None
         finished.set()
         thread.join(timeout=1)
     return True

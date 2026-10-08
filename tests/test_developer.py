@@ -224,7 +224,7 @@ def test_monitor_explicit_single_use_approval_and_real_diff(tmp_path, monkeypatc
             return ImplementationPlan(problem_interpretation="Fixture change", steps=(
                 {"description": "Modify app", "files": ("app.py",)},), tests_to_run=("Check",))
     monkeypatch.setattr(ollama.OllamaPlanProvider, "generate", FixturePlanner().generate)
-    monkeypatch.setattr(monitor.OllamaDevelopmentProvider, "generate", FixtureDeveloper([
+    monkeypatch.setattr(monitor.GatewayDevelopmentProvider, "generate", FixtureDeveloper([
         {"path": "app.py", "kind": "modified", "content": "after\n", "summary": "Fixture edit"}]).generate)
     settings = Settings(_env_file=None, ollama_model="fixture:local", workspace_root=tmp_path / "workspaces")
     with TestClient(create_monitor_app(settings), base_url="http://localhost") as client:
@@ -298,7 +298,8 @@ def test_invalid_created_content_is_explained_without_leaking_source(planned, ol
         provider.generate(DevelopmentContext(task=state.task.request,plan=state.plan,files={'new.py':None}))
     assert 'edits.0' in str(error.value)
     assert 'PRIVATE_SOURCE_TEXT' not in str(error.value)
-    assert provider.last_usage == {'model':'fixture-model','input_tokens':100,'output_tokens':20}
+    assert {k:provider.last_usage[k] for k in ('model','input_tokens','output_tokens')} == {'model':'fixture-model','input_tokens':100,'output_tokens':20}
+    assert provider.last_usage['model_invocations'][0].provider == 'ollama'
 
 
 def test_unchanged_file_is_omitted_beside_real_creation(planned):
