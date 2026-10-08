@@ -3,6 +3,7 @@ import { request } from '../productApi';
 import type { Job } from '../api';
 import type { AcceptanceEvidence } from '../AcceptanceEvidence';
 import type { EngineeringRoute } from './navigation';
+import { isHistoricalSelection } from './navigation';
 import { isActive } from './state';
 import type { ExecutionState } from './state';
 
@@ -11,7 +12,7 @@ export default function useEngineeringSession(route:EngineeringRoute) {
   const [error,setError]=useState(''),[loading,setLoading]=useState(false),[refreshKey,setRefreshKey]=useState(0),[artifactLoading,setArtifactLoading]=useState(false);
   const selected=useRef('');selected.current=`${route.kind}/${route.id}/${route.run??''}`;
   const artifacts=useRef<{signature:string;job:Job}|null>(null);
-  const historical=!!route.run&&route.run!==state?.current?.execution_task_id;
+  const historical=isHistoricalSelection(route,state?.current?.execution_task_id);
   useEffect(()=>{
     let live=true,timer:ReturnType<typeof setTimeout>;const identity=selected.current;
     artifacts.current=null;setState(null);setJob(null);setEvidence(null);setError('');setLoading(!!route.id);setArtifactLoading(false);

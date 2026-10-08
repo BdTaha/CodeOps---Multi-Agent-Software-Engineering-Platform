@@ -4,5 +4,6 @@ import App from './App';
 import './styles.css';
 import './product.css';
 import './engineering/engineering.css';
+import './engineering/teams-resources.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><App /></React.StrictMode>);

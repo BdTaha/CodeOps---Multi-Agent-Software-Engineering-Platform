@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import * as api from './api';
 import type { Agent, Project, Snapshot, Status, View } from './types';
 import { agents } from './types';
-import { openRun, openTask, parseRoute } from './engineering/navigation';
+import { openRun, openTask } from './engineering/navigation';
 import { previewSnapshot, previewProject, previewFiles } from './preview';
 const initialProjects: Project[] = [
   { id: 'system', name: 'engineering-system', path: '.', description: 'Multi-agent platform', stack: ['Python', 'FastAPI', 'LangGraph'] },
@@ -13,7 +13,7 @@ operationAgents.set('route_validation', 'supervisor');
 export default function useWorkbench() {
   const [view, setView] = useState<View>(() => {
     const hash=window.location.hash;
-    if(hash.startsWith('#/engineering')){const route=parseRoute(hash);return route.mode==='reviews'?'review':route.mode==='history'?'metrics':'workspace';}
+    if(hash.startsWith('#/engineering'))return 'workspace';
     const linked=hash.slice(2);if(['projects','planning','board','teams','models'].includes(linked))return linked as View;
     const saved = localStorage.getItem('codeops-view');
     return ['projects', 'planning', 'board', 'teams', 'workspace', 'review', 'results', 'metrics', 'models'].includes(saved ?? '') ? saved as View : 'projects';

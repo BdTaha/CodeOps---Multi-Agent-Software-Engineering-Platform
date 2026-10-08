@@ -6,21 +6,36 @@ single task-centered split-pane workspace; it does not run an illustrative repla
 ## Navigation and routes
 
 - **WORKSPACE:** Projects, Planning, Board, Teams.
-- **ENGINEERING:** Workspace, Reviews, History.
+- **ENGINEERING:** Workspace. All, Active, Review, Done, and History are navigator modes.
 - **SYSTEM:** Models.
 
 Engineering routes use URL hashes, so refreshing a bookmark preserves the selected
 work: `#/engineering/task/<task-id>/<tab>` for current work,
 `#/engineering/task/<task-id>/<tab>?run=<execution-task-id>` for historical work,
 and `#/engineering/run/<execution-task-id>/<tab>` for standalone requests.
-Entry views are `#/engineering`, `#/engineering/reviews`, and `#/engineering/history`.
+`#/engineering` restores useful work instead of opening a landing page. Legacy
+`#/engineering/reviews` and `#/engineering/history` resolve into the same shell.
+Navigator mode is retained as `?mode=reviews` (or active/done/history); explicit
+read-only history selections add `inspect=1`. This also locks the current run when
+opened from History, without requiring a second backend workflow.
 Board and Teams task details link into this workspace.
 
-The persistent task header presents ownership, repository, run, status, next action,
+The compact task header presents ownership, repository, run, status, next action,
 and available controls. Nine stable tabs share the same selected task: **Overview,
 Plan, Files, Diff, Tests, Review, Acceptance, Preview, History**. The secondary pane
 contains the workflow rail or the tab's file, plan, test, finding, or run navigator.
-It can be collapsed. Arrow keys, Home, and End navigate the accessible tabs.
+The task browser owns all task discovery; the main pane only shows selected work.
+Back to tasks switches the secondary pane to search, project/status filters, and
+task/run rows while retaining the main content. Selecting a row switches it to
+workflow, changed files, plan/tests/findings, and execution attempts. Review mode
+contains tasks awaiting human review. Empty filters show a compact message and
+Show all work; they retain the selected task. History loads existing per-task run
+links in bounded groups and shows standalone legacy runs too.
+
+The secondary pane is 240–260px on desktop. The Engineering-only global sidebar
+can collapse into a 60px icon rail; the user choice persists locally and explicit
+expansion is respected on later visits. Planning and Teams retain their own layout.
+Arrow keys, Home, and End navigate the accessible tabs.
 
 Code Review's diff and findings now live in Diff and Review. Results' reports,
 tests, acceptance, and explicit delivery live within the task. Metrics and operation
@@ -35,6 +50,10 @@ operations remain authoritative.
 The diff navigator shows real added/modified/deleted files. Unified and split views
 preserve recorded line numbers and hunks, align replacement blocks, color additions
 and deletions, and support copying paths, downloading the diff, and collapsing files.
+Prism highlights the selected Python, JavaScript, TypeScript, JSX/TSX, Java, C/C++,
+JSON, YAML, HTML, CSS, shell, and Markdown grammars locally. Tokens render as React
+text spans, never injected HTML; unknown or oversized inputs remain plain text.
+Whitespace, line numbering, and addition/deletion backgrounds are preserved.
 Files reads the scoped execution snapshot without allowing edits. Findings navigate
 to the affected diff or read-only source.
 
@@ -61,9 +80,17 @@ execution artifacts load on the first Files/Diff/Tests/Review visit and cache by
 revision. Polling stops for terminal work unless evidence is still being generated.
 Inventory polling occurs while jobs are active; Refresh reloads settled data.
 
+Automatic selection restores a valid previous task, then chooses a genuinely
+executing task, a task in review, planned/assigned work, or the first available task.
+If no tasks exist it uses a retained standalone run; only an empty inventory shows
+the small no-work state. Current selection is stored in both the URL and local
+browser storage. Explicit task/run bookmarks are never replaced by auto-selection.
+
 The backend records operation completion, not individual plan-step completion.
 Diff context is limited to retained hunks; unrecorded context cannot be reconstructed.
-Large selected diffs render 500 rows initially and load more on request. Snapshot
+Large selected diffs render 500 rows initially and load more on request. Diff
+highlighting operates per line, so multiline token context outside a retained hunk
+can be incomplete; full source highlighting retains multiline token boundaries. Snapshot
 source availability depends on retained workspace files. Standalone runs have no
 EngineeringTask ownership or managed preview. Compact HTTP projections reduce
 payloads, but database hydration is unchanged. Real current production tasks did not
@@ -92,7 +119,8 @@ cd ..
 ```
 
 Frontend tests cover diff line numbers, replacement alignment, bookmarks, workflow
-states, historical evidence separation, and semantic tabs. Backend projection tests
+states, historical evidence separation, semantic tabs, selection priority, navigator
+empty states, read-only history selection, and syntax text/line/escaping integrity. Backend projection tests
 check that compact responses preserve counts and default API contracts without
 mutating retained artifacts. Optional integration suites require their configured
 Docker/PostgreSQL/provider environments.

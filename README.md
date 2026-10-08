@@ -17,7 +17,8 @@ restarting workers. Credentials are encrypted on the backend. See
 
 Engineering uses a task-centered split-pane workspace with Overview, Plan, Files,
 Diff, Tests, Review, Acceptance, Preview, and History tabs. Reviews and History
-provide task entry queues; Models lives under SYSTEM. See [frontend workspace](docs/frontend.md).
+are navigator modes within the same workspace. Opening Engineering restores useful
+work, and its global sidebar can collapse into an icon rail. Models lives under SYSTEM. See [frontend workspace](docs/frontend.md).
 
 ## Quick start on Windows
 
