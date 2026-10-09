@@ -3,6 +3,10 @@
 CodeOps is an AI-assisted engineering management and multi-agent delivery platform
 that turns product goals into reviewable engineering work.
 
+**New to CodeOps?** Start with the [complete beginner's user guide](docs/user-guide.md)
+for startup instructions, a first-task walkthrough, every navigation section,
+button and Engineering tab, and troubleshooting.
+
 ## Why CodeOps
 
 Keep management decisions, implementation and human verification in one traceable
