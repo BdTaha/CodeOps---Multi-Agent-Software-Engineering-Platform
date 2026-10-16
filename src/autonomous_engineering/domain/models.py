@@ -2,6 +2,8 @@
 from typing import Literal, Protocol
 from pydantic import BaseModel, ConfigDict, Field
 
+ReasoningPolicy = Literal['provider_default', 'disabled', 'enabled', 'low', 'medium', 'high']
+
 
 class ModelMessage(BaseModel):
     role: Literal['system', 'user', 'assistant']
@@ -10,7 +12,7 @@ class ModelMessage(BaseModel):
 
 class ModelRequest(BaseModel):
     model_config = ConfigDict(frozen=True, extra='forbid')
-    purpose: Literal['product_planning', 'coding_planning', 'development', 'review', 'acceptance_evidence']
+    purpose: Literal['product_planning', 'coding_planning', 'development', 'review', 'acceptance_evidence', 'compatibility_test']
     messages: tuple[ModelMessage, ...] = Field(min_length=1)
     model: str = Field(min_length=1, max_length=200)
     temperature: float = Field(default=0, ge=0, le=1, allow_inf_nan=False)
@@ -34,6 +36,7 @@ class ModelInvocation(BaseModel):
     input_tokens: int | None = Field(default=None, ge=0)
     output_tokens: int | None = Field(default=None, ge=0)
     total_tokens: int | None = Field(default=None, ge=0)
+    reasoning: ReasoningPolicy | None = None
 
 
 class ModelResponse(BaseModel):

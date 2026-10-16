@@ -6,6 +6,7 @@ from pathlib import Path
 from pydantic import Field, field_validator, SecretStr, PrivateAttr
 from urllib.parse import urlsplit
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from autonomous_engineering.domain.models import ReasoningPolicy
 
 
 class Settings(BaseSettings):
@@ -36,6 +37,7 @@ class Settings(BaseSettings):
     nvidia_api_key: SecretStr | None = Field(default=None, repr=False)
     nvidia_base_url: str = 'https://integrate.api.nvidia.com/v1'
     nvidia_structured_mode: Literal['prompt', 'json_object', 'json_schema'] = 'prompt'
+    nvidia_reasoning_policy: ReasoningPolicy = 'provider_default'
     planner_timeout_seconds: float = Field(default=180, gt=0, le=600, allow_inf_nan=False)
     test_timeout_seconds: float = Field(default=60, gt=0, le=300, allow_inf_nan=False)
     database_url: SecretStr = SecretStr("sqlite:///engineering.db")

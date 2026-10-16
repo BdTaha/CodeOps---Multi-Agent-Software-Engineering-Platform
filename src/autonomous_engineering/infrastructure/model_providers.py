@@ -115,6 +115,7 @@ class NvidiaNimProvider:
         self.url = settings.nvidia_base_url
         self.key = settings.nvidia_api_key
         self.structured_mode = settings.nvidia_structured_mode
+        self.reasoning_policy = getattr(settings, 'nvidia_reasoning_policy', 'provider_default')
         self.transport = transport or HttpTransport('nvidia')
 
     def generate(self, request):
@@ -125,7 +126,9 @@ class NvidiaNimProvider:
         headers = {'Authorization': 'Bearer '+self.key.get_secret_value()}
         body = {'model':request.model, 'messages':[m.model_dump() for m in request.messages],
                 'temperature':request.temperature, 'max_tokens':request.max_output_tokens, 'stream':False}
-        if request.model == 'moonshotai/kimi-k3': body['reasoning_effort'] = 'low'
+        from autonomous_engineering.infrastructure.nvidia_reasoning import reasoning_control
+        body.update(reasoning_control(request.model, self.reasoning_policy,
+            structured=request.structured_schema is not None)['parameters'])
         # Hosted K3 reference does not document response_format. Explicit opt-in
         # supports other compatible catalog models; no silent parameter downgrade.
         if request.structured_schema and self.structured_mode != 'prompt':
@@ -159,3 +162,8 @@ class NvidiaNimProvider:
         if rid and self.key.get_secret_value() in rid: rid = None
         return ModelResponse(content=content, provider='nvidia', model=request.model, request_id=rid,
                              latency_ms=(time.monotonic()-started)*1000, **observed)
+
+    def reasoning_mode(self, request):
+        from autonomous_engineering.infrastructure.nvidia_reasoning import reasoning_control
+        return reasoning_control(request.model, self.reasoning_policy,
+            structured=request.structured_schema is not None)['effective_reasoning']

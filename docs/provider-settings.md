@@ -24,12 +24,68 @@ Catalog endpoints may be unavailable or paginated; manual model entry is always
 available. A catalog test confirms catalog access, not generation compatibility
 or model quality, and does not generate text or download Ollama models.
 
+After selecting a connection and exact model ID, **Test selected model** optionally
+sends one tiny JSON generation request to that model. It uses a fixed prompt with
+no repository content, a 32-token output cap, and a 25-second request timeout.
+It never tests the whole catalog, falls back to another model, or changes routing.
+Catalog connectivity and selected-model generation results are shown separately.
+Timeout/rejection/invalid responses are reported without exposing provider output,
+prompts, reasoning text, or credentials. A passing tiny check does not establish
+that a larger planning/development request will succeed. The test uses the saved
+connection revision; refresh if another tab changed it.
+
 OpenAI-compatible services can choose `max_tokens` or `max_completion_tokens`
 and omit temperature for models that reject it. Prompt-based JSON instructions
 are the default. Compatible OpenAI/NVIDIA models can explicitly opt into
 `json_object` or `json_schema`; unsupported parameters fail visibly rather than
 silently changing the request. Anthropic and Gemini currently use JSON prompt
 instructions and the existing local result validation.
+
+## NVIDIA reasoning compatibility
+
+NVIDIA connection forms expose **Reasoning**: Provider default, Disabled, Enabled
+(Laguna), Low, Medium, and High. Reasoning can help complex tasks but materially
+increase latency. Support is model-specific; this setting is not sent to other
+protocols and does not belong to individual engineering tasks.
+
+| Exact NVIDIA model ID | Provider default in CodeOps | Explicit supported controls |
+| --- | --- | --- |
+| `poolside/laguna-xs-2.1` | Structured requests send `chat_template_kwargs: {"enable_thinking": false}` | Disabled → false; Enabled → true in `chat_template_kwargs.enable_thinking`. Effort levels are rejected. |
+| `moonshotai/kimi-k3` | Preserves legacy `reasoning_effort: "low"` | Low / High. NVIDIA's documented K3 values are low/high/max, so Medium and Disabled/Enabled are rejected rather than invented or remapped. Max is not exposed by this UI. |
+| `openai/gpt-oss-20b`, `openai/gpt-oss-120b` | No override sent | Low / Medium / High → `reasoning_effort` with that value. |
+| Other NVIDIA models | No override sent | Provider default until an exact documented profile is added. |
+
+These are exact compatibility profiles, not substring matching. No request sends
+both effort and chat-template controls. Unsupported route/model-policy combinations
+are rejected with an explanation when applying a route, editing an active
+connection, or testing/generating. An unselected connection can save a policy;
+its validity is checked once a model is selected.
+
+The stored default remains `provider_default`. It inherits the two compatibility
+exceptions above; otherwise it leaves provider reasoning unchanged. Older JSON
+connection rows without this field remain readable without a database reset,
+credential rewrite, or schema migration. Encryption/DPAPI behavior is unchanged.
+Environment routing supports `ASE_NVIDIA_REASONING_POLICY=provider_default` (or
+another validated policy); a saved connection has its own policy.
+
+Routing and active status expose Laguna's effective **Disabled · CodeOps Laguna
+compatibility default** and Kimi's legacy Low behavior. Invocation metadata records
+only the effective policy label, alongside existing outcome, latency, provider,
+fallback, and usage information. No reasoning content is retained in those records.
+
+The live observation reported by the operator was a tiny Playground JSON request
+finishing in about 7.8 seconds with Laguna reasoning off, versus repeated CodeOps
+structured planning requests timing out at the explicit 600-second setting without
+a thinking override. These inputs and execution conditions differ: this identifies
+a compatibility/latency concern, not proof that thinking alone caused every delay.
+Deterministic tests verify the control payload and bounds, not hosted latency.
+
+References checked October 16, 2026:
+[Poolside optional thinking and disabling reasoning](https://huggingface.co/poolside/Laguna-XS-2.1#disabling-reasoning),
+[NVIDIA Laguna model card](https://build.nvidia.com/poolside/laguna-xs-2.1/modelcard),
+[NVIDIA Kimi effort values](https://docs.api.nvidia.com/nim/reference/moonshotai-kimi-k3-infer),
+[NVIDIA GPT-OSS 20B effort API](https://docs.api.nvidia.com/nim/reference/openai-gpt-oss-20b-infer),
+[NVIDIA GPT-OSS 120B model](https://docs.api.nvidia.com/nim/reference/openai-gpt-oss-120b).
 
 ## Persistence and precedence
 
@@ -89,6 +145,9 @@ that configured timeout before an eligible fallback starts, so a configured valu
 of 600 can explain a roughly ten-minute delay. The fallback request can add its
 own latency. Model routing in the UI does not override this timeout; update the
 operator configuration and restart the affected services if you intend to change it.
+Models status shows the effective primary timeout beside routing. The optional
+generation test has its own 25-second bound and never waits for that 600-second
+operator timeout. Neither UI operation overwrites your explicit environment value.
 
 Fallback remains limited to connection, timeout, rate-limit, and availability/
 not-configured failures. A semantically invalid response such as

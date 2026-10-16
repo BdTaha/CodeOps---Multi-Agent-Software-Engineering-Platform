@@ -225,6 +225,9 @@ Custom provider means an endpoint implementing one of the supported protocols. I
 | Trash icon / **Delete [name]** | Removes an unused connection. It is disabled if saved primary or fallback routing references it. There is no second confirmation dialog in this UI. |
 | **Connection / Model ID** in routing | Select the service and exact model for primary or fallback use. |
 | **Load models** in routing | Fetches a catalog for the currently selected connection. You can also type an exact ID manually. |
+| **Reasoning** in an NVIDIA provider form | Sets Provider default, Disabled, Enabled (Laguna), Low, Medium, or High for this saved connection. Supported values depend on the exact model; see [NVIDIA compatibility](provider-settings.md#nvidia-reasoning-compatibility). Laguna structured requests default to Disabled; Kimi retains Low. |
+| **Test selected model** in routing | Runs one optional tiny JSON generation check against the selected saved connection/model: 32 output tokens, 25-second timeout, no repository content, and no fallback. Its result is separate from catalog connectivity; passing does not guarantee large tasks succeed. |
+| Effective reasoning / primary timeout notice | Explains any compatibility default and the configured wait before eligible fallback. A 600-second operator timeout can mean ten minutes before fallback; this is not changed by the UI check. |
 | **Enable fallback** | Allows an optional second route for connection, timeout, rate-limit, or availability failures. Invalid generated results and rejected code reviews do not trigger provider switching. |
 | **Apply routing** | Activates the selection for new operations. An operation already running keeps its current model. |
 | **Use environment settings** | Removes the saved route override and restores the environment-based configuration. |

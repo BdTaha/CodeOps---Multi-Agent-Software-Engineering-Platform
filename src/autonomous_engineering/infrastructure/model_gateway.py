@@ -72,13 +72,18 @@ class ModelGateway:
             started = monotonic()
             response = None
             error = None
+            reasoning = None
             try:
                 if not model: raise ProviderNotConfigured(provider, 'No model provider configured.')
-                response = self.providers[connection].generate(request.model_copy(update={'model':model}, deep=True))
+                adapter = self.providers[connection]
+                selected = request.model_copy(update={'model':model}, deep=True)
+                if hasattr(adapter, 'reasoning_mode'): reasoning = adapter.reasoning_mode(selected)
+                response = adapter.generate(selected)
             except ProviderError as exc:
                 error = exc
             invocation = ModelInvocation(purpose=request.purpose, provider=provider, model=model or 'not configured',
                 provider_name=name,
+                reasoning=reasoning,
                 outcome=error.reason if error else 'succeeded', fallback_used=fallback,
                 fallback_reason=primary_error.reason if primary_error else None, latency_ms=(monotonic()-started)*1000,
                 **({k:getattr(response,k) for k in ('request_id','input_tokens','output_tokens','total_tokens')} if response else {}))

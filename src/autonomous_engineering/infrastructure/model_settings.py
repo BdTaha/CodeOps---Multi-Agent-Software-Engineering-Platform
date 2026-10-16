@@ -9,10 +9,12 @@ from typing import Literal
 from uuid import uuid4
 
 from cryptography.fernet import Fernet, InvalidToken
-from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator, model_validator
 from sqlalchemy import Column, Integer, MetaData, String, Table, Text, select, update, delete, true
 
 from autonomous_engineering.infrastructure.custom_models import validate_endpoint
+from autonomous_engineering.domain.models import ReasoningPolicy, ProviderError
+from autonomous_engineering.infrastructure.nvidia_reasoning import reasoning_control
 
 metadata = MetaData()
 connections = Table('model_connections', metadata,
@@ -33,7 +35,14 @@ class ConnectionInput(BaseModel):
     structured_mode: Literal['prompt', 'json_object', 'json_schema'] = 'prompt'
     token_parameter: Literal['max_tokens', 'max_completion_tokens'] = 'max_tokens'
     send_temperature: bool = True
+    reasoning_policy: ReasoningPolicy = 'provider_default'
     revision: int | None = Field(default=None, ge=1)
+
+    @model_validator(mode='after')
+    def reasoning_valid(self):
+        if self.protocol != 'nvidia' and self.reasoning_policy != 'provider_default':
+            raise ValueError('Reasoning policy is supported only for NVIDIA NIM connections.')
+        return self
 
     @field_validator('name')
     @classmethod
@@ -73,6 +82,17 @@ class RouteInput(BaseModel):
 
 
 class SettingsConflict(ValueError): pass
+
+
+class SelectedModelTestInput(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    model: str = Field(min_length=1, max_length=200)
+    revision: int = Field(ge=1)
+
+    @field_validator('model')
+    @classmethod
+    def model_valid(cls, value):
+        return RouteInput.model_valid(value)
 
 
 def _protect(data, decrypt=False):
@@ -135,7 +155,9 @@ class ModelSettingsStore:
 
     @staticmethod
     def public(row):
-        return {'id': row['id'], 'revision': row['revision'], **json.loads(row['profile']), 'has_key': bool(row['encrypted_key'])}
+        profile = json.loads(row['profile'])
+        profile.setdefault('reasoning_policy', 'provider_default')
+        return {'id': row['id'], 'revision': row['revision'], **profile, 'has_key': bool(row['encrypted_key'])}
 
     def profile(self, connection_id, db=None, secrets=False):
         if db is None:
@@ -173,6 +195,10 @@ class ModelSettingsStore:
             if connection_id:
                 old = self.profile(connection_id, db)
                 if old['revision'] != data.revision: raise SettingsConflict('Connection changed. Refresh and try again.')
+                saved_route = json.loads(db.execute(select(routes.c.route)).scalar_one() or '{}')
+                for which in ('primary', 'fallback'):
+                    if saved_route.get(which+'_connection') == connection_id and (which == 'primary' or saved_route.get('fallback_enabled')):
+                        self.validate_reasoning(profile, saved_route[which+'_model'])
                 values = {'profile': json.dumps(profile), 'revision': old['revision']+1}
                 if data.api_key or data.clear_key: values['encrypted_key'] = encrypted
                 result = db.execute(update(connections).where(connections.c.id == connection_id, connections.c.revision == data.revision).values(**values))
@@ -194,6 +220,7 @@ class ModelSettingsStore:
                 if len(pairs) == 2 and pairs[0] == pairs[1]: raise ValueError('Primary and fallback must use different models or connections.')
                 for connection_id, model in pairs:
                     profile = self.profile(connection_id, db)
+                    self.validate_reasoning(profile, model)
                     if profile['protocol'] != 'ollama' and not profile['has_key'] and not profile['base_url'].startswith(('http://localhost', 'http://127.', 'http://[::1]')):
                         raise ValueError('Add an API key to the selected hosted connection.')
                     if profile['protocol'] == 'ollama' and (any(c.isspace() for c in model) or model.endswith((':cloud', '-cloud'))):
@@ -202,6 +229,12 @@ class ModelSettingsStore:
                 .values(revision=routes.c.revision+1, route=json.dumps(data.model_dump(exclude={'revision'})) if data else None))
             if result.rowcount != 1: raise SettingsConflict('Routing changed. Refresh and try again.')
         return self.snapshot()
+
+    @staticmethod
+    def validate_reasoning(profile, model):
+        if profile['protocol'] == 'nvidia':
+            try: reasoning_control(model, profile.get('reasoning_policy', 'provider_default'))
+            except ProviderError as exc: raise ValueError(str(exc)) from None
 
     def remove(self, connection_id, revision):
         self.writable()

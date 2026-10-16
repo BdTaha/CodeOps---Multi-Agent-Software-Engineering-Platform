@@ -5,11 +5,12 @@ import time
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import ValidationError
 from starlette.concurrency import run_in_threadpool
-from autonomous_engineering.infrastructure.model_settings import ConnectionInput, RouteInput, SettingsConflict
+from autonomous_engineering.infrastructure.model_settings import ConnectionInput, RouteInput, SettingsConflict, SelectedModelTestInput
 from autonomous_engineering.infrastructure.custom_models import ConfiguredProvider
 from autonomous_engineering.domain.models import ProviderError
 from autonomous_engineering.infrastructure.model_gateway import resolve_route
 from autonomous_engineering.infrastructure.model_providers import OllamaProvider
+from autonomous_engineering.infrastructure.nvidia_reasoning import reasoning_control
 
 
 def model_router(settings):
@@ -17,12 +18,20 @@ def model_router(settings):
     store = settings._model_settings_store
     cache = {}
     lock = threading.Lock()
+    def reasoning_status(protocol, model, policy='provider_default'):
+        if protocol != 'nvidia' or not model: return {}
+        try:
+            control = reasoning_control(model, policy)
+            return {'reasoning_policy':policy, **{key:control[key] for key in ('effective_reasoning','reasoning_source')}}
+        except ProviderError:
+            return {'reasoning_policy':policy, 'reasoning_error':'Unsupported reasoning policy for the selected model.'}
     def status(provider, model):
         key_present = settings.nvidia_api_key is not None and bool(settings.nvidia_api_key.get_secret_value().strip())
         configured = bool(model and (key_present if provider == 'nvidia' else True))
         result = {'provider':provider, 'display_name':'NVIDIA NIM' if provider == 'nvidia' else 'Ollama',
                   'model':model, 'configured':configured, 'available':None, 'status':'not_configured' if not configured else 'not_checked',
                   'model_display_name':'Kimi K3' if model == 'moonshotai/kimi-k3' else model}
+        result.update(reasoning_status(provider, model, settings.nvidia_reasoning_policy))
         if provider == 'ollama' and configured:
             with lock:
                 if cache.get('expires',0) <= time.monotonic():
@@ -42,15 +51,18 @@ def model_router(settings):
             def saved_status(connection_id, model):
                 profile = store.profile(connection_id) if connection_id else None
                 return {'provider':profile['protocol'] if profile else None, 'display_name':profile['name'] if profile else 'No fallback',
-                    'model':model, 'model_display_name':model, 'configured':bool(profile and model), 'available':None, 'status':'not_checked' if profile else 'not_configured'}
+                    'model':model, 'model_display_name':model, 'configured':bool(profile and model), 'available':None, 'status':'not_checked' if profile else 'not_configured',
+                    **(reasoning_status(profile['protocol'], model, profile['reasoning_policy']) if profile else {})}
             return {'primary':saved_status(route.primary_connection, route.model),
                 'fallback':{'enabled':route.fallback_enabled, **saved_status(route.fallback_connection, route.fallback_model)},
                 'compatibility_mode':False, 'configuration_source':'settings',
+                'request_timeout_seconds':settings.planner_timeout_seconds,
                 'fallback_policy':'Provider availability failures only; authentication and validation failures never fall back.'}
         return {'primary':status(route.provider,route.model),
                 'fallback':{'enabled':route.fallback_enabled, **status('ollama',route.fallback_model)},
                 'nvidia':status('nvidia', settings.model_primary_model if route.provider == 'nvidia' else 'moonshotai/kimi-k3'),
                 'compatibility_mode':route.compatibility_mode, 'configuration_source':'environment',
+                'request_timeout_seconds':settings.planner_timeout_seconds,
                 'fallback_policy':'Provider availability failures only; authentication and validation failures never fall back.',
                 'nvidia_availability_notice':'Configured means a key is detected. Hosted availability is confirmed by model invocations; this page does not run paid generation.'}
 
@@ -114,6 +126,17 @@ def model_router(settings):
         profile = call(lambda:store.profile(connection_id, secrets=True))
         try: return {'models':ConfiguredProvider(profile).catalog(), 'message':'Catalog connection verified. Generation compatibility is checked when a task runs.'}
         except ProviderError as exc: raise HTTPException(422, {'code':exc.reason, 'message':str(exc)}) from None
+
+    @router.post('/system/models/connections/{connection_id}/test')
+    async def generation_test(connection_id: str, request: Request):
+        data = await body(request, SelectedModelTestInput)
+        profile = call(lambda:store.profile(connection_id, secrets=True))
+        if profile['revision'] != data.revision:
+            raise HTTPException(409, 'Connection changed. Refresh before testing the selected model.')
+        if profile.get('key') and profile['key'] in data.model:
+            raise HTTPException(422, 'Choose a model ID, not a credential.')
+        from autonomous_engineering.infrastructure.model_probe import test_selected_model
+        return await run_in_threadpool(test_selected_model, profile, data.model)
 
     @router.put('/system/models/route')
     async def save_route(request: Request):

@@ -1,5 +1,45 @@
 # CodeOps v1 verification — 2026-10-08
 
+## NVIDIA optional thinking and bounded compatibility probe — 2026-10-16
+
+The operator reported a tiny Laguna Playground JSON request returning in roughly
+7.8 seconds with reasoning off, while larger CodeOps requests without a thinking
+control repeatedly hit the configured 600-second timeout. Different prompts and
+conditions prevent attributing the delay solely to reasoning. No live cloud
+generation or latency benchmark is claimed for this fix.
+
+Exact documented model profiles now apply Laguna's
+`chat_template_kwargs.enable_thinking=false` default for structured requests and
+retain Kimi's legacy `reasoning_effort=low`. Explicit NVIDIA connection policies
+are validated against documented support, without substring matching or sending
+both controls. An Enabled option uses Laguna's documented boolean true; no effort
+levels are invented for Laguna. Kimi Medium is rejected because its API documents
+low/high/max; GPT-OSS 20B/120B supplies documented low/medium/high coverage.
+Other protocols retain their existing payload behavior.
+
+Saved JSON profiles accept missing reasoning fields through a backward-compatible
+default. Credential encryption, endpoint validation, pinned DNS/SSRF checks, and
+availability-only fallback remain unchanged. Explicit operator timeouts are not
+modified; Models shows the effective value. Effective reasoning labels join safe
+invocation metadata without prompts, provider output, or reasoning content.
+
+The optional selected-model probe makes exactly one tiny fixed-prompt request,
+32 output tokens and 25-second timeout, with no repository content or fallback.
+It returns separate success/timeout/rejection/invalid-response status and safe
+metrics; a successful catalog or probe does not prove engineering-task quality.
+Tests use deterministic fake HTTP transports and disposable databases, not live
+NVIDIA/Ollama keys or the working database.
+
+Focused provider/settings/gateway suite: **137 passed, 25 skipped**, 11.48s.
+Skips are explicit PostgreSQL opt-ins. Regressions cover exact request bodies,
+unsupported policies, Kimi compatibility, encrypted persistence and legacy rows,
+other protocol boundaries, safe bounded generation tests, local origin/revision
+checks, effective timeout/status, and one-time timeout fallback without semantic
+fallback. Frontend: **45 passed**, production build passed (1,808 modules,
+JS 451.13 kB, 137.51 kB gzip). Full backend: **590 passed, 146 skipped**, 135.97s;
+skips are opt-in PostgreSQL/Docker/preview/Node integrations. The existing full
+suite also exercises semantic invalid-output failures without provider fallback.
+
 ## Failed repair evidence retention — 2026-10-16
 
 The live v1 walkthrough exposed an audit bug: a development-attempt increment

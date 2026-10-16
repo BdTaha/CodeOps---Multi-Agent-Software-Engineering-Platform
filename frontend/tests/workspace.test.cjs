@@ -7,6 +7,23 @@ const React=require('react');
 const {renderToStaticMarkup}=require('react-dom/server');
 const {EngineeringTabs}=require('../.test-dist/engineering/EngineeringChrome.js');
 
+test('model settings separate bounded generation checks, reasoning, and operator timeout',()=>{
+ const {ReasoningControls,ModelTimeoutNotice,SelectedModelResult}=require('../.test-dist/ModelControls.js');
+ const Settings=require('../.test-dist/ModelSettings.js').default;
+ const render=(component,props)=>renderToStaticMarkup(React.createElement(component,props));
+ const options=render(ReasoningControls,{value:'provider_default',onChange:()=>{}});
+ for(const label of ['Provider default','Disabled','Enabled (Laguna)','Low','Medium','High'])assert.ok(options.includes(label));
+ assert.match(options,/materially increase latency/);assert.match(options,/Kimi K3 supports Low\/High/);
+ assert.match(render(ModelTimeoutNotice,{seconds:600}),/up to 600 seconds/);
+ assert.match(render(ModelTimeoutNotice,{seconds:600}),/25-second limit and never falls back/);
+ const valid=render(SelectedModelResult,{result:{compatible:true,message:'Tiny JSON generation check passed. Large engineering tasks may still fail.',invocation:{latency_ms:123,reasoning:'disabled'}}});
+ assert.match(valid,/Selected model generation: Compatible/);assert.match(valid,/Large engineering tasks may still fail/);assert.match(valid,/Reasoning: disabled/);
+ const failed=render(SelectedModelResult,{result:{compatible:false,message:'Selected model timed out.',invocation:{latency_ms:25000}}});
+ assert.match(failed,/Not compatible/);assert.match(failed,/timed out/);
+ assert.match(render(Settings,{}),/Catalog tests check connectivity/);
+ assert.match(render(Settings,{}),/Test selected model/);
+});
+
 test('failed repair history retains actual diff, failed test output, and separate repair failure',()=>{
  const DiffViewer=require('../.test-dist/engineering/DiffViewer.js').default;
  const {TestsView}=require('../.test-dist/engineering/EvidenceViews.js');

@@ -98,6 +98,12 @@ class ConfiguredProvider:
         if self.protocol == 'gemini': return {'x-goog-api-key': self.key}
         return {'Authorization': 'Bearer '+self.key}
 
+    def reasoning_mode(self, request):
+        if self.protocol != 'nvidia': return None
+        from autonomous_engineering.infrastructure.nvidia_reasoning import reasoning_control
+        return reasoning_control(request.model, self.profile.get('reasoning_policy', 'provider_default'),
+            structured=request.structured_schema is not None)['effective_reasoning']
+
     def catalog(self):
         path = '/api/tags' if self.protocol == 'ollama' else '/models'
         headers = self.headers()
@@ -122,7 +128,8 @@ class ConfiguredProvider:
                 provider = OllamaProvider(SimpleNamespace(ollama_base_url=self.url), safe_opener)
                 provider.transport = self.transport
             else: provider = NvidiaNimProvider(SimpleNamespace(nvidia_base_url=self.url, nvidia_api_key=SecretStr(self.key) if self.key else None,
-                nvidia_structured_mode=self.profile['structured_mode']), self.transport)
+                nvidia_structured_mode=self.profile['structured_mode'],
+                nvidia_reasoning_policy=self.profile.get('reasoning_policy', 'provider_default')), self.transport)
             return provider.generate(request)
         started = time.monotonic()
         messages = [message.model_dump() for message in request.messages]
