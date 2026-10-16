@@ -108,7 +108,9 @@ class WorkflowState(DomainModel):
             values.update(plan=None, changes=(), development=None, tests=None, review=None, report=None)
         if "plan" in update.model_fields_set:
             values.update(changes=(), development=None, tests=None, review=None, report=None)
-        if "changes" in update.model_fields_set or update.development_attempt_increment:
+        # An attempt can fail before producing any replacement code. Its count
+        # and error must not invalidate evidence about the last accepted artifact.
+        if "changes" in update.model_fields_set or "development" in update.model_fields_set:
             values.update(development=None, tests=None, review=None, report=None)
         if "tests" in update.model_fields_set:
             values.update(review=None, report=None)

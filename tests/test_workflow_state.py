@@ -111,10 +111,12 @@ def test_omitted_fields_are_preserved_and_explicit_none_clears(state) -> None:
     assert updated.analysis == state.analysis
 
 
-def test_new_development_attempt_clears_verification_and_enforces_budget(state) -> None:
+def test_new_development_attempt_retains_evidence_and_enforces_budget(state) -> None:
     updated = state.apply(WorkflowUpdate(current_agent="developer", development_attempt_increment=1))
     assert updated.development_attempts == 1
-    assert updated.tests is updated.review is updated.report is None
+    assert updated.tests == state.tests
+    assert updated.review == state.review
+    assert updated.report == state.report
     for _ in range(2):
         updated = updated.apply(WorkflowUpdate(development_attempt_increment=1))
     with pytest.raises(ValidationError):

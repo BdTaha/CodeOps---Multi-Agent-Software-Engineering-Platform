@@ -80,6 +80,21 @@ Mutation and catalog requests must originate from the local workspace. This
 inherits CodeOps' trusted local deployment model, not multi-user authentication.
 Preview containers receive neither saved credentials nor the encryption key.
 
+## Request timeout and fallback latency
+
+`ASE_PLANNER_TIMEOUT_SECONDS` sets the structured model request timeout, including
+planning and development calls. Its default is 180 seconds; an explicit environment
+or `.env` value takes precedence (up to 600 seconds). A primary call may wait for
+that configured timeout before an eligible fallback starts, so a configured value
+of 600 can explain a roughly ten-minute delay. The fallback request can add its
+own latency. Model routing in the UI does not override this timeout; update the
+operator configuration and restart the affected services if you intend to change it.
+
+Fallback remains limited to connection, timeout, rate-limit, and availability/
+not-configured failures. A semantically invalid response such as
+`INVALID_DEVELOPMENT` does not trigger another provider. Test & load models checks
+the catalog, not the latency or correctness of a generated implementation.
+
 Protocol references: [OpenAI chat completions](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create),
 [Anthropic Messages](https://platform.claude.com/docs/en/api/messages/create),
 [Gemini generateContent](https://ai.google.dev/api/generate-content).

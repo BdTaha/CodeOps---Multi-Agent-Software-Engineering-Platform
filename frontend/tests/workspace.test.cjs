@@ -6,6 +6,33 @@ const {stages,nextAction}=require('../.test-dist/engineering/state.js');
 const React=require('react');
 const {renderToStaticMarkup}=require('react-dom/server');
 const {EngineeringTabs}=require('../.test-dist/engineering/EngineeringChrome.js');
+
+test('failed repair history retains actual diff, failed test output, and separate repair failure',()=>{
+ const DiffViewer=require('../.test-dist/engineering/DiffViewer.js').default;
+ const {TestsView}=require('../.test-dist/engineering/EvidenceViews.js');
+ const History=require('../.test-dist/engineering/ExecutionHistory.js').default;
+ const {RetainedArtifactNotice}=require('../.test-dist/engineering/EngineeringChrome.js');
+ const development={diff:'--- a/app.py\n+++ b/app.py\n@@ -1 +1 @@\n-old_value\n+new_value\n'};
+ const snapshot={development,changes:[{path:'app.py',kind:'modified'}],tests:{outcome:'failed',summary:'unittest returned nonzero',executions:[{command:['python','-m','unittest'],exit_code:1,duration_seconds:0.2,output_summary:'AssertionError: original test failure',timed_out:false,error:null}]},executions:[
+  {execution_id:'test',operation:'run_tests',status:'failed',duration_seconds:0.2,attempt:1,output_summary:'unittest returned nonzero',error:{code:'TESTS_FAILED',message:'Original test failure'}},
+  {execution_id:'repair',operation:'develop_implementation',status:'failed',duration_seconds:0.3,attempt:2,output_summary:'Development did not complete',error:{code:'INVALID_DEVELOPMENT',message:'Invalid repair response'}}
+ ]};
+ const failedJob={id:'retained',phase:'failed',snapshot};
+ const render=(component,props)=>renderToStaticMarkup(React.createElement(component,props));
+ const diff=render(DiffViewer,{diff:development.diff,path:'app.py',runId:'retained'});
+ assert.match(diff,/new_value/);assert.match(diff,/old_value/);assert.doesNotMatch(diff,/No text hunk retained|No diff yet/);
+ const tests=render(TestsView,{snapshot});
+ assert.match(tests,/AssertionError: original test failure/);assert.match(tests,/python -m unittest/);assert.match(tests,/Exit 1/);
+ assert.doesNotMatch(tests,/without retained test results|No test runs recorded/);
+ const history=render(History,{state:null,job:failedJob,onRun:()=>{},onTab:()=>{}});
+ assert.match(history,/TESTS_FAILED/);assert.match(history,/INVALID_DEVELOPMENT/);assert.match(history,/Invalid repair response/);
+ const notice=render(RetainedArtifactNotice,{job:failedJob});
+ assert.match(notice,/last successfully produced code artifact/);assert.match(notice,/do not indicate a successful run/);
+ const {tabAvailability}=require('../.test-dist/engineering/lifecycle.js');
+ const tabs=tabAvailability(null,failedJob,true);
+ for(const name of ['files','diff','tests','history'])assert.equal(tabs[name].state,'enabled');
+ assert.equal(render(RetainedArtifactNotice,{job:{...failedJob,phase:'succeeded'}}),'');
+});
 test('unified file hunks preserve real old/new numbers and created/deleted paths',()=>{
   const files=parseDiff('--- a/old.py\n+++ b/old.py\n@@ -18,2 +18,2 @@\n context\n-old\n+new\n--- /dev/null\n+++ b/new.py\n@@ -0,0 +1,1 @@\n+hello\n--- a/gone.py\n+++ /dev/null\n@@ -1,1 +0,0 @@\n-gone\n');
   assert.deepEqual(files.map(f=>f.path),['old.py','new.py','gone.py']);

@@ -13,7 +13,7 @@ import type { Tab, NavigatorMode } from './navigation';
 import useEngineeringSession from './useEngineeringSession';
 import { isActive, stages } from './state';
 import EngineeringTaskPicker, { NavigatorModes, useEngineeringInventory } from './EngineeringTaskPicker';
-import { EngineeringTaskHeader, EngineeringTabs, WorkflowRail } from './EngineeringChrome';
+import { EngineeringTaskHeader, EngineeringTabs, WorkflowRail, RetainedArtifactNotice } from './EngineeringChrome';
 import PlanView from './PlanView';
 import type { ApprovalOptions } from './PlanView';
 import DiffViewer, { ChangedFilesList } from './DiffViewer';
@@ -121,6 +121,7 @@ export default function EngineeringWorkspace({lab,onContext}:{lab:Workbench;onCo
       </>:null}
       {(error||session.error)&&<div className="product-error eng-error" role="alert">{error||session.error}<button className="text-button" onClick={session.refresh}>Retry loading</button></div>}
       <section className="eng-main-pane" role={route.id?'tabpanel':undefined} id={`engineering-panel-${route.tab}`} aria-labelledby={route.id?`engineering-tab-${route.tab}`:undefined} tabIndex={0}>
+        {route.id&&<RetainedArtifactNotice job={job}/>}
         {route.id?content():<div className="eng-empty-note" role="status">{!inventory.workspace?'Loading engineering work…':inventory.error?'Engineering work could not load. Refresh the navigator to retry.':<><p>No engineering tasks or runs yet.</p><button className="text-button" onClick={()=>lab.setView('planning')}>Open Planning</button><button className="text-button" onClick={()=>lab.setTaskModal(true)}>New coding request</button></>}</div>}
       </section>
     </div>

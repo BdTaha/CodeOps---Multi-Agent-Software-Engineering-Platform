@@ -43,7 +43,9 @@ def develop_approved(state: WorkflowState, storage: Path, approved_id: str,
         receipt = initial_receipt if snapshot.development_attempts == 0 else approval_identity(snapshot, storage)
         result = _develop(snapshot, storage, receipt, provider, before_write)
         changed = result["snapshot"]
-        if changed.development is not None:
+        # Failed generation did not replace the code. Keep the actual retained
+        # artifact, including its cumulative diff/receipt, without rebuilding it.
+        if changed.development is not None and not _development_failed(changed):
             edits, changes, hashes = [], [], {}
             present = reader.inventory().files
             for path, before in originals.items():
@@ -88,12 +90,21 @@ def develop_approved(state: WorkflowState, storage: Path, approved_id: str,
         return "finalize_development"
     graph.add_node("route_validation", node("route_validation", supervise))
     graph.add_edge(START, "develop_implementation")
-    graph.add_edge("develop_implementation", "run_tests")
+    graph.add_conditional_edges("develop_implementation", lambda envelope:
+        "finalize_development" if _development_failed(read_snapshot(envelope)) else "run_tests",
+        ["run_tests", "finalize_development"])
     graph.add_edge("run_tests", "review_changes")
     graph.add_edge("review_changes", "route_validation")
     graph.add_conditional_edges("route_validation", route, ["develop_implementation", "finalize_development"])
     graph.add_edge("finalize_development", END)
     return WorkflowState.model_validate(graph.compile().invoke({"snapshot": state}, config={"recursion_limit": state.max_development_attempts * 5 + 3})["snapshot"])
+
+
+def _development_failed(state: WorkflowState) -> bool:
+    """The latest development operation failed before accepting replacement code."""
+    latest = next((record for record in reversed(state.executions)
+                   if record.operation == "develop_implementation"), None)
+    return latest is not None and latest.status == "failed"
 
 
 def _develop(state: WorkflowState, storage: Path, approved_id: str,
@@ -161,10 +172,12 @@ def _review(state: WorkflowState, storage: Path, provider: ReviewProvider | None
 
 def _finalize(developed: WorkflowState) -> GraphState:
     passed = developed.tests is not None and developed.tests.outcome == TestOutcome.PASSED
-    success = passed and developed.review is not None and developed.review.approved
+    success = not _development_failed(developed) and passed and developed.review is not None and developed.review.approved
     error = None
     if success:
         summary = "Approved snapshot changes passed the configured test suite and received model review approval."
+    elif _development_failed(developed) and developed.errors:
+        summary = developed.errors[-1].message
     elif developed.review is not None:
         summary = developed.review.summary
     elif developed.errors:

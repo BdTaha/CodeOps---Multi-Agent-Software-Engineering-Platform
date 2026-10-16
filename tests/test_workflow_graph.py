@@ -154,7 +154,8 @@ def test_graph_validation_rejects_false_success_before_channel_write(initial) ->
     assert initial.task.status == TaskStatus.PENDING
 
 
-def test_graph_applies_invalidation_before_replacing_snapshot(initial) -> None:
+@pytest.mark.parametrize('replace_changes', [False, True])
+def test_graph_separates_attempt_count_from_artifact_replacement(initial, replace_changes) -> None:
     running = initial.apply(WorkflowUpdate(status=TaskStatus.RUNNING,
         tests=TestResults(outcome="passed", summary="Fixture pass", executions=(TestExecution(
             command=("pytest",), exit_code=0, duration_seconds=0.1, output_summary="Fixture pass",
@@ -165,6 +166,7 @@ def test_graph_applies_invalidation_before_replacing_snapshot(initial) -> None:
     def develop(state: GraphState) -> GraphState:
         return {"snapshot": read_snapshot(state).apply(WorkflowUpdate(
             current_agent="developer", development_attempt_increment=1,
+            **({'changes': ()} if replace_changes else {}),
         ))}
 
     builder = StateGraph(GraphState)
@@ -172,7 +174,12 @@ def test_graph_applies_invalidation_before_replacing_snapshot(initial) -> None:
     builder.add_edge(START, "update")
     builder.add_edge("update", END)
     output = builder.compile().invoke({"snapshot": running})["snapshot"]
-    assert output.tests is output.review is output.report is None
+    if replace_changes:
+        assert output.tests is output.review is output.report is None
+    else:
+        assert output.tests == running.tests
+        assert output.review == running.review
+        assert output.report == running.report
     assert output.development_attempts == 1
     assert running.tests is not None
 

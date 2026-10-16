@@ -9,6 +9,12 @@ import { tabs } from './navigation';
 import { tabAvailability, uxPhase } from './lifecycle';
 import type { Tab } from './navigation';
 
+export function RetainedArtifactNotice({job}:{job:Job|null}) {
+  const latest=job?.snapshot.executions.filter(record=>record.operation==='develop_implementation').at(-1);
+  if(job?.phase!=='failed'||!job.snapshot.development||latest?.status!=='failed')return null;
+  return <p className="eng-evidence-note" role="note">This run failed during repair. Files, diff, and validation below belong to the last successfully produced code artifact. They do not indicate a successful run. History records the later repair failure separately.</p>;
+}
+
 export function EngineeringTaskHeader({state,job,project,historical,actions,historicalOwner}:{state:ExecutionState|null;job:Job|null;project:Project|undefined;historical:boolean;actions:ReactNode;historicalOwner?:TeamMember|null}) {
   const task=state?.task,owner=historical?historicalOwner:state?.execution_owner??state?.owner;
   const phase=uxPhase(state,job,historical);

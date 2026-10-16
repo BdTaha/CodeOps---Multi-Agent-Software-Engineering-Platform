@@ -1,5 +1,64 @@
 # CodeOps v1 verification — 2026-10-08
 
+## Failed repair evidence retention — 2026-10-16
+
+The live v1 walkthrough exposed an audit bug: a development-attempt increment
+cleared the last valid development artifact and its test/review evidence before
+replacement code existed. A failed repair generation could leave changed-file
+metadata and workspace files but lose the actual diff and failed test output.
+
+Replacement is now atomic within the validated snapshot: attempt/error recording
+alone retains the existing artifact and evidence. Accepting replacement changes
+or a replacement development artifact invalidates stale downstream results.
+Failed generation goes directly to failed finalization without rebuilding the
+previous cumulative diff or rerunning tests/review over the retained evidence.
+The existing no-change repair path still requests fresh validation. The UI labels
+retained evidence as belonging to the last successfully produced code artifact,
+explicitly distinguishing it from a successful run.
+
+Deterministic regressions exercise initial multi-file development → actual
+nonzero unittest execution → allowed repair → `INVALID_DEVELOPMENT` before a
+replacement → final FAILED. They compare the retained artifact, diff, hashes,
+original files, approval receipt, and complete failed TestResults with the earlier
+recorded snapshots; verify separate test/repair errors; and check checkpoint/JSON,
+SQLite reopen, full API retrieval, and retained file access. Another regression
+checks rejected-review retention after failed repair. Successful replacement
+clears Tests A before executing Tests B; existing no-change and bounded-repair
+tests remain covered. Frontend rendering tests check actual diff hunks, command,
+nonzero exit and output, separate History failures, available historical tabs,
+and the retained-artifact notice rather than empty-state messages.
+
+The optional Docker regression executes the actual offline container unittest
+failure, then fails a deterministic repair provider and retrieves the failed
+snapshot's diff/test output through the API from a disposable SQLite database.
+No external inference keys are required. No working database or existing run
+history is reset, repaired, or reconstructed. Already-discarded historical
+artifacts are not fabricated or recovered by this change.
+
+Developer instructions now cover existing API/helper exception contracts,
+resource lifetimes, and isolated deterministic tests with temporary/configurable
+storage. No Docker runner, approval, delivery, acceptance, or provider-fallback
+policy was changed. The timeout default remains 180 seconds; explicit operator
+overrides remain respected. See [timeout/fallback documentation](provider-settings.md#request-timeout-and-fallback-latency).
+
+Completed targeted checks (the older release results in the following sections
+describe the October 8 baseline):
+
+* Final normal backend suite: **555 passed, 139 skipped**, 245.76s. Optional
+  PostgreSQL/Docker/preview/Node integrations remain opt-in; Docker checks below
+  were run separately. An older graph test encoded attempt-count invalidation;
+  it now explicitly checks both retention and replacement semantics.
+* Focused retention/state/durable/reviewer suite: **79 passed, 7 skipped**, 32.51s.
+  Skips are optional Docker/PostgreSQL/Node integrations.
+* Graph update semantics: **20 passed**, 3.53s, including both attempt-only retention
+  and real replacement invalidation.
+* Actual Docker failed-test/failed-repair/API retention: **1 passed, 5 deselected**,
+  5.47s, with deterministic model providers and actual container unittest failure.
+* Existing Docker non-root/read-only/network isolation check: **1 passed,
+  11 deselected**, 6.85s.
+* Frontend: **44 passed**; production TypeScript/Vite build passed, 1,807 modules,
+  JS 448.17 kB (136.61 kB gzip), CSS 90.41 kB. No new UI empty-state failure.
+
 ## Release checks
 
 * Normal backend: **549 passed, 138 skipped**, 167.90s. Skips are explicit PostgreSQL,
