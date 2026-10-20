@@ -13,15 +13,16 @@ from autonomous_engineering.infrastructure.custom_models import ConfiguredProvid
 from autonomous_engineering.infrastructure.model_gateway import ModelGateway
 from autonomous_engineering.infrastructure.model_providers import NvidiaNimProvider
 from autonomous_engineering.infrastructure.model_settings import ConnectionInput, ModelSettingsStore, connections
-from autonomous_engineering.infrastructure.nvidia_reasoning import LAGUNA_MODEL, KIMI_MODEL
+from autonomous_engineering.infrastructure.nvidia_reasoning import LAGUNA_MODEL, KIMI_MODEL, NEMOTRON_MODEL
 from autonomous_engineering.platform import create_platform_app
 
 
 @pytest.mark.parametrize('policy', ['provider_default', 'disabled', 'enabled'])
-def test_laguna_exact_payload_uses_only_documented_thinking_control(policy):
+@pytest.mark.parametrize('model', [LAGUNA_MODEL, NEMOTRON_MODEL])
+def test_exact_thinking_profile_payload_uses_only_documented_control(policy, model):
     transport = Transport((200, completion(), None))
     provider = NvidiaNimProvider(config(nvidia_reasoning_policy=policy), transport)
-    req = request().model_copy(update={'model':LAGUNA_MODEL})
+    req = request().model_copy(update={'model':model})
     provider.generate(req)
     body = transport.calls[0][1]
     assert body['chat_template_kwargs'] == {'enable_thinking':policy == 'enabled'}
@@ -29,7 +30,8 @@ def test_laguna_exact_payload_uses_only_documented_thinking_control(policy):
     assert provider.reasoning_mode(req) == ('enabled' if policy == 'enabled' else 'disabled')
 
 
-@pytest.mark.parametrize('model', ['generic/model', 'poolside/laguna-xs-2.1-other', 'other/poolside/laguna-xs-2.1'])
+@pytest.mark.parametrize('model', ['generic/model', 'poolside/laguna-xs-2.1-other', 'other/poolside/laguna-xs-2.1',
+    NEMOTRON_MODEL+'-other', 'other/'+NEMOTRON_MODEL])
 def test_provider_default_does_not_guess_generic_model_capabilities(model):
     transport = Transport((200, completion(), None))
     NvidiaNimProvider(config(), transport).generate(request().model_copy(update={'model':model}))
@@ -54,6 +56,7 @@ def test_kimi_retains_legacy_low_and_accepts_documented_overrides(policy, effort
 
 
 @pytest.mark.parametrize('model,policy', [(LAGUNA_MODEL,'low'), (LAGUNA_MODEL,'medium'), (LAGUNA_MODEL,'high'),
+    (NEMOTRON_MODEL,'low'), (NEMOTRON_MODEL,'medium'), (NEMOTRON_MODEL,'high'),
     (KIMI_MODEL,'medium'), (KIMI_MODEL,'disabled'), ('generic/model','disabled'), ('generic/model','low')])
 def test_unsupported_overrides_never_reach_transport_or_fallback(model, policy):
     transport = Transport()
@@ -184,3 +187,48 @@ def test_timeout_falls_back_once_with_reasoning_recorded_but_invalid_output_does
     # Agent-specific semantic validation still happens after this single transport call.
     assert gw.generate(request()).content == 'not JSON'
     assert len(transport.calls) == 1 and not backup.requests
+
+
+@pytest.mark.parametrize('policy', ['provider_default', 'enabled'])
+def test_nemotron_probe_uses_exact_profile_and_preserves_bounds(system, monkeypatch, caplog, policy):
+    settings, tasks, saved = system
+    profile = nvidia(saved, policy)
+    route(saved, profile, model=NEMOTRON_MODEL)
+    transport = Transport((200, completion('{"status":"ok"}'), None))
+    monkeypatch.setattr('autonomous_engineering.infrastructure.custom_models.HttpTransport', lambda *args:transport)
+    with TestClient(create_platform_app(settings,tasks)) as client:
+        response = client.post(f"/system/models/connections/{profile['id']}/test",
+            json={'model':NEMOTRON_MODEL,'revision':profile['revision']})
+        assert response.status_code == 200 and response.json()['compatible']
+        invocation = response.json()['invocation']
+        assert invocation['reasoning'] == ('enabled' if policy == 'enabled' else 'disabled')
+        assert not invocation['fallback_used'] and invocation['fallback_reason'] is None
+        status = client.get('/system/models').json()['primary']
+        assert status['effective_reasoning'] == invocation['reasoning']
+        assert status['reasoning_source'] == ('connection' if policy == 'enabled' else 'compatibility_default')
+    assert len(transport.calls) == 1
+    _, body, timeout, _ = transport.calls[0]
+    assert body['model'] == NEMOTRON_MODEL
+    assert body['chat_template_kwargs'] == {'enable_thinking':policy == 'enabled'}
+    assert 'reasoning_effort' not in body
+    assert body['max_tokens'] == 32 and timeout == 25
+    assert body['messages'] == [{'role':'user','content':'Return only this JSON object: {"status":"ok"}'}]
+    for private in (KEY, 'PRIVATE_REASONING', body['messages'][0]['content']):
+        assert private not in response.text and private not in caplog.text
+
+
+@pytest.mark.parametrize('finish_reason,content', [('length','{"status":"ok"}'), ('stop','')])
+def test_nemotron_probe_does_not_accept_reasoning_only_or_truncated_output(system, monkeypatch, finish_reason, content):
+    settings, tasks, saved = system
+    profile = nvidia(saved)
+    payload = completion(content)
+    payload['choices'][0]['finish_reason'] = finish_reason
+    transport = Transport((200, payload, None))
+    monkeypatch.setattr('autonomous_engineering.infrastructure.custom_models.HttpTransport', lambda *args:transport)
+    with TestClient(create_platform_app(settings,tasks)) as client:
+        response = client.post(f"/system/models/connections/{profile['id']}/test",
+            json={'model':NEMOTRON_MODEL,'revision':profile['revision']})
+        assert response.status_code == 200 and not response.json()['compatible']
+        assert response.json()['outcome'] == 'response_error'
+        assert 'PRIVATE_REASONING' not in response.text
+    assert len(transport.calls) == 1

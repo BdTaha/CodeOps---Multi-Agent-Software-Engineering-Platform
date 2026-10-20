@@ -12,7 +12,7 @@ test('model settings separate bounded generation checks, reasoning, and operator
  const Settings=require('../.test-dist/ModelSettings.js').default;
  const render=(component,props)=>renderToStaticMarkup(React.createElement(component,props));
  const options=render(ReasoningControls,{value:'provider_default',onChange:()=>{}});
- for(const label of ['Provider default','Disabled','Enabled (Laguna)','Low','Medium','High'])assert.ok(options.includes(label));
+ for(const label of ['Provider default','Disabled','Enabled','Low','Medium','High'])assert.ok(options.includes(label));
  assert.match(options,/materially increase latency/);assert.match(options,/Kimi K3 supports Low\/High/);
  assert.match(render(ModelTimeoutNotice,{seconds:600}),/up to 600 seconds/);
  assert.match(render(ModelTimeoutNotice,{seconds:600}),/25-second limit and never falls back/);
@@ -22,6 +22,20 @@ test('model settings separate bounded generation checks, reasoning, and operator
  assert.match(failed,/Not compatible/);assert.match(failed,/timed out/);
  assert.match(render(Settings,{}),/Catalog tests check connectivity/);
  assert.match(render(Settings,{}),/Test selected model/);
+});
+
+test('reasoning summaries show the exact Nemotron default without changing other models',()=>{
+ const {ModelReasoningSummary}=require('../.test-dist/ModelControls.js');
+ const render=props=>renderToStaticMarkup(React.createElement(ModelReasoningSummary,props));
+ const model='nvidia/nemotron-3.5-super-vl-120b-a12b';
+ assert.equal(render({model,policy:'provider_default'}),'Disabled · CodeOps Nemotron compatibility default');
+ assert.equal(render({model,policy:'disabled',source:'compatibility_default'}),'Disabled · CodeOps Nemotron compatibility default');
+ assert.equal(render({model,policy:'enabled',source:'connection'}),'enabled');
+ assert.equal(render({model:'poolside/laguna-xs-2.1',policy:'provider_default'}),'Disabled · CodeOps Laguna compatibility default');
+ assert.equal(render({model:'moonshotai/kimi-k3',policy:'provider_default'}),'Low · Kimi legacy default');
+ assert.equal(render({model:'openai/gpt-oss-120b',policy:'high'}),'high');
+ assert.equal(render({model:model+'-other',policy:'provider_default'}),'provider default');
+ assert.equal(render({model:'constructor',policy:'provider_default'}),'provider default');
 });
 
 test('failed repair history retains actual diff, failed test output, and separate repair failure',()=>{

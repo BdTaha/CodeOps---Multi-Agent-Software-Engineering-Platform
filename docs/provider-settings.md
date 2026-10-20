@@ -43,14 +43,15 @@ instructions and the existing local result validation.
 
 ## NVIDIA reasoning compatibility
 
-NVIDIA connection forms expose **Reasoning**: Provider default, Disabled, Enabled
-(Laguna), Low, Medium, and High. Reasoning can help complex tasks but materially
+NVIDIA connection forms expose **Reasoning**: Provider default, Disabled, Enabled,
+Low, Medium, and High. Reasoning can help complex tasks but materially
 increase latency. Support is model-specific; this setting is not sent to other
 protocols and does not belong to individual engineering tasks.
 
 | Exact NVIDIA model ID | Provider default in CodeOps | Explicit supported controls |
 | --- | --- | --- |
 | `poolside/laguna-xs-2.1` | Structured requests send `chat_template_kwargs: {"enable_thinking": false}` | Disabled → false; Enabled → true in `chat_template_kwargs.enable_thinking`. Effort levels are rejected. |
+| `nvidia/nemotron-3.5-super-vl-120b-a12b` | Structured requests send `chat_template_kwargs: {"enable_thinking": false}` | Disabled → false; Enabled → true. This CodeOps profile deliberately exposes only the boolean thinking control and rejects Low / Medium / High; it never sends `reasoning_effort`. |
 | `moonshotai/kimi-k3` | Preserves legacy `reasoning_effort: "low"` | Low / High. NVIDIA's documented K3 values are low/high/max, so Medium and Disabled/Enabled are rejected rather than invented or remapped. Max is not exposed by this UI. |
 | `openai/gpt-oss-20b`, `openai/gpt-oss-120b` | No override sent | Low / Medium / High → `reasoning_effort` with that value. |
 | Other NVIDIA models | No override sent | Provider default until an exact documented profile is added. |
@@ -61,7 +62,7 @@ are rejected with an explanation when applying a route, editing an active
 connection, or testing/generating. An unselected connection can save a policy;
 its validity is checked once a model is selected.
 
-The stored default remains `provider_default`. It inherits the two compatibility
+The stored default remains `provider_default`. It inherits the three compatibility
 exceptions above; otherwise it leaves provider reasoning unchanged. Older JSON
 connection rows without this field remain readable without a database reset,
 credential rewrite, or schema migration. Encryption/DPAPI behavior is unchanged.
@@ -72,6 +73,22 @@ Routing and active status expose Laguna's effective **Disabled · CodeOps Laguna
 compatibility default** and Kimi's legacy Low behavior. Invocation metadata records
 only the effective policy label, alongside existing outcome, latency, provider,
 fallback, and usage information. No reasoning content is retained in those records.
+
+For the exact Nemotron 3.5 Super ID above, routing and active status show
+**Disabled · CodeOps Nemotron compatibility default**. NVIDIA documents optional
+thinking through `chat_template_kwargs.enable_thinking`. CodeOps uses false for
+bounded structured agent operations; operators can explicitly choose Enabled to
+send true. This is a deliberately limited compatibility profile, not a claim that
+NVIDIA's API has no additional controls. Final assistant content and `finish_reason`
+validation, the 32-token/25-second probe, and availability-only fallback are unchanged.
+Reasoning text is not used as final JSON or included in invocation records.
+
+The operator's earlier Nemotron probe used provider_default and returned an invalid
+or incomplete result in approximately 781 ms. This change does not establish why
+that request failed or guarantee that all engineering requests will succeed.
+Nemotron references checked October 20, 2026:
+[NVIDIA boolean-control example](https://build.nvidia.com/nvidia/nemotron-3.5-super-vl-120b-a12b),
+[NVIDIA model card](https://build.nvidia.com/nvidia/nemotron-3.5-super-vl-120b-a12b/modelcard).
 
 The live observation reported by the operator was a tiny Playground JSON request
 finishing in about 7.8 seconds with Laguna reasoning off, versus repeated CodeOps

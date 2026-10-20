@@ -1,5 +1,36 @@
 # CodeOps v1 verification — 2026-10-08
 
+## Nemotron 3.5 Super exact thinking profile — 2026-10-20
+
+Added `nvidia/nemotron-3.5-super-vl-120b-a12b` to the existing exact-model boolean
+thinking profiles. For structured CodeOps requests, Provider default resolves to
+Disabled; Disabled sends `chat_template_kwargs.enable_thinking=false`, and Enabled
+sends true. Low/Medium/High are rejected by this CodeOps profile before transport,
+and no Nemotron request sends `reasoning_effort`. No substring matching or gateway
+redesign was introduced. Models uses the Nemotron compatibility-default label and
+the shared Enabled selector now covers both Laguna and Nemotron.
+
+Deterministic fake-transport tests cover all three supported policies, rejection
+of all effort policies without fallback, unrecognized lookalike model IDs, and
+the selected-model probe with default and Enabled policies. The probe retains its
+fixed tiny JSON prompt, 32 output tokens, 25-second timeout, no repository content,
+and no fallback. Tests also reject truncated or reasoning-only responses while
+keeping reasoning content out of returned metadata. Existing Laguna/Kimi/GPT-OSS,
+other protocol, credential/endpoint, and fallback regressions remain in the suite.
+
+The earlier live probe was reported as provider_default with an incomplete result
+at about 781 ms. No cause is asserted and no live NVIDIA generation/latency claim
+is made: verification uses fixtures and disposable test databases, not cloud keys
+or the working database. Token budgets, final-content/finish-reason validation,
+timeouts, credential encryption, SSRF/DNS checks, and fallback rules are unchanged.
+
+Focused NVIDIA/settings/gateway checks: **149 passed, 29 skipped**, 13.56s.
+Skips are explicit PostgreSQL opt-ins; no live NVIDIA key is needed. Full backend:
+**602 passed, 150 skipped**, 129.07s; skips are optional PostgreSQL/Docker/preview/
+Node integrations. Frontend: **46 passed**; TypeScript/Vite production build
+passed, 1,808 modules, JS 451.32 kB (137.64 kB gzip), CSS 90.41 kB. No existing
+database reset or live hosted generation was performed.
+
 ## NVIDIA optional thinking and bounded compatibility probe — 2026-10-16
 
 The operator reported a tiny Laguna Playground JSON request returning in roughly
