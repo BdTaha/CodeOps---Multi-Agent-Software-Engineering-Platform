@@ -1,5 +1,14 @@
 # CodeOps verification
 
+## Supplied logo — 2026-11-01
+
+Replaced the sidebar mark with the user's original transparent cube-and-spark
+artwork. A CSS alpha mask inherits the interface foreground; black and white
+favicons match light and dark browser chrome. Both production builds passed.
+The published sidebar mark and favicon declarations were verified in the browser;
+its warning/error log was empty. The logo capture is `screenshots/logo-brand.jpg`.
+Cloudflare version: `25f70c64-ebe7-487f-83fa-a49c8a5138e9`.
+
 ## Reference-led dark workbench — 2026-11-01
 
 The user rejected the light/navy presentation and supplied a dark desktop-editor

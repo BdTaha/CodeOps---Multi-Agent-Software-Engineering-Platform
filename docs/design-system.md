@@ -19,6 +19,12 @@ they are not used as branding. Typography uses Segoe UI Variable with system
 fallbacks, including headings. Source, commands and paths retain monospace text.
 No external fonts, animation framework or UI kit are required.
 
+The sidebar uses the user's supplied cube-and-spark logo. Its original transparent
+PNG provides the CSS mask, so the mark inherits the surface's foreground color
+without altering the artwork. Browser favicons use the supplied black version for
+light browser chrome and white version for dark browser chrome. Both files are
+bundled locally and work under the normal `/ui/` and showcase `/` bases.
+
 The desktop shell has a modest inset and narrow frame. The sidebar uses a small
 inline wordmark, compact navigation and registered-project links. User choices to
 collapse the sidebar remain saved. Projects uses a repository list beside current

@@ -15,7 +15,7 @@ body { background: #111; }
 .product-shell .global-sidebar-toggle:hover { background: var(--surface-hover); color: var(--text-primary); }
 .product-shell.global-expanded .brand { padding: 14px 16px; min-height: 48px; gap: 8px; }
 .product-shell .brand > span:last-child { font: 500 14px var(--font-sans); letter-spacing: -.2px; color: #e4e4e4; }
-.product-shell .brand-mark { width: 18px; height: 20px; background: transparent; border: 0; color: #c7c7c7; border-radius: 0; }
+.product-shell .brand-mark { width: 24px; height: 26px; flex: 0 0 24px; display: block; border: 0; border-radius: 0; color: var(--text-primary); background: currentColor; mask: url('../assets/codeops-logo-black.png') center / contain no-repeat; -webkit-mask: url('../assets/codeops-logo-black.png') center / contain no-repeat; }
 .product-shell.global-rail .sidebar-toggle-row { position: static; padding: 8px 0 0; }
 .product-shell.global-rail .brand { padding: 13px 0 16px; }
 .product-sidebar-tools { padding: 5px 10px 22px; }

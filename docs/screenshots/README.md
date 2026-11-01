@@ -21,6 +21,7 @@ No screenshot claims that a model, test runner or Docker environment ran here.
 | [History](engineering-history.jpg) | Read-only historical inspection |
 | [Models](models.jpg) | Visible primary/fallback route; no credentials |
 | [Live showcase](showcase-live.jpg) | Verified public Cloudflare deployment |
+| [Supplied logo](logo-brand.jpg) | Subsequent logo update, cropped to sidebar branding |
 
 Captured during the November 1, 2026 reference-led presentation pass at 1440×900.
 Additional responsive checks cover phone and desktop breakpoints. Capture dimensions are preserved in
