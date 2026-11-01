@@ -166,6 +166,10 @@ body { background: #111; }
 .model-settings-card h2 { font-size: 14px; font-weight: 500; }
 .model-connection { border-top: 1px solid var(--border); }
 .model-settings-notice { background: transparent; border-color: #666; color: #aaa; padding: 8px 14px; }
+.model-showcase-notice { margin: 0 0 20px; padding: 14px 16px; background: var(--surface-raised); border: 1px solid var(--border-strong); border-radius: 5px; font-size: 12px; }
+.model-showcase-notice strong { display: block; color: var(--text-primary); font-weight: 500; margin-bottom: 7px; }
+.model-showcase-notice p { color: var(--text-secondary); font-size: 11px; line-height: 1.8; }
+.model-showcase-notice p + p { margin-top: 6px; }
 .eng-workspace, .app-content:has(.showcase-banner) .eng-workspace { height: 100%; min-height: 0; background: #1c1c1c; }
 .eng-layout { grid-template-columns: 300px minmax(0, 1fr); }
 .eng-layout.pane-collapsed { grid-template-columns: minmax(0, 1fr); }
