@@ -4,102 +4,236 @@ CodeOps turns product goals into engineering tasks and isolated AI coding runs,
 with human approval, inspectable evidence and explicit delivery.
 
 [Live interactive showcase](https://codeops-showcase.tahabd.workers.dev) ·
-[Run the showcase locally](docs/showcase.md) ·
-[Architecture](docs/architecture.md) · [User guide](docs/user-guide.md)
+[User guide](docs/user-guide.md) · [Quick start](#quick-start-windows) ·
+[Architecture](docs/architecture.md)
 
-React/TypeScript → FastAPI → SQLAlchemy → durable LangGraph workers → model gateway
-→ isolated source → tests/review → human decision. SQLite is the default;
-PostgreSQL, Docker runners and Docker previews are supported.
+![CodeOps dark workspace with the current logo, split diff and recorded execution stages](docs/screenshots/engineering-diff.jpg)
 
-![CodeOps engineering workspace showing a retained split diff](docs/screenshots/engineering-diff.jpg)
+**Explore the interface:** [New plan](#new-plan) · [Projects](#projects) ·
+[Planning](#planning) · [Board](#board) · [Teams](#teams) ·
+[Workspace](#workspace) · [Models](#models)
 
-*Actual interface capture with explicitly illustrative showcase data. The public
-showcase runs the same frontend without model calls, backend access or delivery.*
+All images below are actual captures of the current application with labeled
+sample records. The public showcase lets you explore the frontend and selected
+sample edits; it does not call models, run containers, connect repositories or
+deliver code. Models is read-only there. The full local application provides those
+capabilities with its API, workers and configured providers.
 
-**New to CodeOps?** Start with the [complete beginner's user guide](docs/user-guide.md)
-for startup instructions, a first-task walkthrough, every navigation section,
-button and Engineering tab, and troubleshooting.
-
-## Why CodeOps
-
-Keep management decisions, implementation and human verification in one traceable
-workspace. Generated plans are proposals: people edit and approve them before work
-becomes actionable. Every coding run retains its plan, diff, tests, review,
-evidence, human decision and explicit delivery artifact.
-
-## Core workflow
+## From a goal to reviewed code
 
 ```text
-Product goal → Repository-grounded draft → Human plan approval
-→ Board / Teams → Human + AI ownership → Run with CodeOps
-→ Repository analysis → Coding plan → Human coding approval
-→ Developer → Tests → Reviewer / bounded repair → Acceptance evidence
-→ Optional preview → Human accept or Request Changes → Explicit Git / draft PR
+Project → Product goal → Editable draft → Human product-plan approval
+→ Board / Teams → Assignment → Explicit execution
+→ Repository analysis → Coding plan → Human coding-plan approval
+→ Development → Tests / bounded repair → AI review → Acceptance evidence
+→ Optional preview → Human accept or Request Changes → Explicit delivery
 ```
 
-Drafts use T refs. Only approval creates permanent CO keys and actionable tasks.
-Older approved work remains visible while another draft is generated. Estimates
-are rough effort, not guaranteed delivery time.
+Product-plan approval, coding-plan approval and human acceptance are separate
+decisions. Assignment does not start an execution, and accepting a result does
+not deliver it. Estimates describe rough effort, not guaranteed delivery time.
 
-## Architecture and features
+## Visual tour
 
-React/TypeScript provides Planning, Board, Teams and a task-centered Engineering
-workspace. FastAPI/Pydantic validates boundaries; SQLAlchemy persists SQLite or
-PostgreSQL state; independent LangGraph workers perform analysis/coding/tests/
-review. A separate worker owns previews. See [architecture](docs/architecture.md).
+### New plan
 
-* Repository observations, editable drafts, revisions and atomic approval.
-* Shared workspace members, project squads, global human capacity and explainable
-  assignment suggestions; AI queues are separate from runtime concurrency.
-* Overview, Plan, Files, highlighted unified/split Diff, Tests, Review, Acceptance,
-  Preview and History, with actions appropriate to retained lifecycle state.
-* Evidence, Request Changes/new runs, human acceptance and explicit Git delivery.
+**New plan** in the sidebar opens Planning for the selected project. Describe the
+outcome you want, then choose **Plan with CodeOps** to request a product draft.
+The goal stays beside the proposed work so you can compare the request with the
+plan. Submitting another goal creates another saved plan; earlier work is retained.
 
-## Safety and human control
+![New plan opens the goal composer beside the proposed product draft](docs/screenshots/new-plan.jpg)
 
-Product and coding plans require separate human approvals. AI works in isolated
-snapshots; tests/previews use isolated environments. Original source stays
-unchanged until explicitly choosing local apply. Acceptance is human-controlled;
-delivery is separate and explicit. There is no automatic merge or deployment.
-Fallback is observable. Missing evidence never becomes fabricated verification.
-Tests and model review provide evidence, not guarantees of correctness.
+### Projects
 
-## Model providers
+Register an existing local repository, inspect its description, technology stack
+and path, and open its planning context. The right pane provides shortcuts for the
+current project. **Preview configuration** describes how that project's reviewed
+application should start in an isolated preview environment.
 
-**Settings · Models** supports NVIDIA NIM, Ollama, OpenAI-compatible, Anthropic,
-Gemini and custom connections using existing supported protocols. Test/load models
-or enter an exact ID; choose primary and optional fallback; **Apply routing**.
-Keys remain encrypted on the backend; settings apply without worker restart.
-Environment-based `ASE_*` setup stays compatible. The NVIDIA route supports Kimi
-configuration; availability depends on account/provider. Ollama needs no cloud
-key. Use a model capable of structured JSON; small models can fail validation or
-produce weak plans. See [settings](docs/provider-settings.md) and
-[fallback policy](docs/model-gateway.md).
+![Projects lists registered repositories and the current project's context](docs/screenshots/projects.jpg)
 
-## Local preview
+### Planning
 
-Reviewed Python/Node applications can run in one temporary Docker environment
-with loopback URL, health checks, TTL and cleanup. Preview copies filtered reviewed
-source to its own volume, never mounts the host repository and never decides
-acceptance. External-service/multi-container apps are outside v1.
+Review and edit the draft's epics, task descriptions, priorities, effort estimates,
+dependencies and acceptance criteria. The planning basis explains which repository
+observations informed the proposal and where inspection was limited. Save edits,
+then choose **Approve Plan & Create Work Items** when the breakdown is ready.
+Draft `T` references become permanent `CO` task keys only after approval; drafts
+stay out of Board, Teams and Engineering until then.
+
+![Planning exposes editable draft tasks, dependencies and acceptance criteria](docs/screenshots/planning.jpg)
+
+### Board
+
+Track approved work through **Backlog**, **Planned**, **In progress**, **Review**
+and **Done**. Cards show the task key, estimate, priority, technical area, owner
+and dependencies. Filter by project, text, priority, area, assignee or squad, and
+open a card to inspect its requirements and assignment. Tasks linked to an
+execution follow that execution's lifecycle and human acceptance.
+
+![Board groups approved tasks by status with ownership and dependency context](docs/screenshots/board.jpg)
+
+### Teams
+
+Manage shared human and AI members, project memberships and squads. Human capacity
+summarizes planned effort across projects. AI queued ownership and actual reserved
+execution slots are displayed separately, including coding-plan approval waits.
+Assign work yourself or review assignment suggestions before applying them;
+assignment alone does not run agents.
+
+![Teams separates member identity, planned capacity, queued work and reserved execution slots](docs/screenshots/teams.jpg)
+
+### Workspace
+
+**Workspace** opens Engineering. Find a task using the All, Active, Review, Done
+or History filters, then inspect its context and retained runs. Eligible assigned
+work can be explicitly started. The task header presents the actions appropriate
+to the selected state; the bottom strip navigates recorded execution stages.
+**Overview** brings the request, changes, validation and next decision together.
+
+![Engineering Overview collects task context, retained results and the next human decision](docs/screenshots/engineering-overview.jpg)
+
+<details>
+<summary><strong>Explore all nine Engineering tabs</strong></summary>
+
+#### Overview
+
+Read the task description, readiness or blockers, and summaries of changes, tests,
+AI review and acceptance evidence. Before execution, inspect assignment and
+dependency readiness. After execution, use the summaries to open retained artifacts.
+
+![Overview shows the selected task and summaries of its retained evidence](docs/screenshots/engineering-overview.jpg)
+
+#### Plan
+
+Inspect the proposed implementation steps, affected files, planned validation,
+risks and limitations. A waiting run requires a separate human coding-plan approval.
+Choose the test runner, framework and bounded attempt limit before authorizing
+continuation. Plan steps describe intended work, not verified completion.
+
+![Plan presents file-level implementation steps and the human approval gate](docs/screenshots/engineering-plan.jpg)
+
+#### Files
+
+Read the selected run's retained snapshot source with syntax highlighting and line
+numbers. Select a changed file in the context pane or switch to its diff. This
+view inspects saved source; it does not edit the original repository.
+
+![Files displays read-only retained source with syntax highlighting](docs/screenshots/engineering-files.jpg)
+
+#### Diff
+
+Compare added and removed lines using unified or split views. The changed-file
+navigator, line numbers, hunk headers and change counts keep review focused.
+Copy a path or download the retained diff for closer inspection.
+
+![Diff compares the retained before and after source in split view](docs/screenshots/engineering-diff.jpg)
+
+#### Tests
+
+Inspect the retained runner, command, duration, outcome, counts when reported,
+and output logs. Failures remain evidence for inspection and repair. The report
+shown here is explicitly illustrative showcase data, not a test executed by the
+public site.
+
+![Tests shows a sample command, outcome, duration and expanded retained output](docs/screenshots/engineering-tests.jpg)
+
+#### Review
+
+Read the AI review summary and findings, including severity, source references,
+evidence and recommended fixes when supplied. Open referenced source or diffs to
+check the finding yourself. AI approval supplies evidence; it does not replace
+human acceptance.
+
+![Review displays the AI decision and a source-linked finding](docs/screenshots/engineering-review.jpg)
+
+#### Acceptance
+
+Compare each requirement with its retained evidence. CodeOps distinguishes
+**verified**, **supported**, **unverified** and conflicting evidence, and links
+back to source artifacts. An implementation association alone does not become a
+passing test. Unresolved criteria require explicit acknowledgment before acceptance.
+
+![Acceptance distinguishes passing-test verification from implementation support and missing evidence](docs/screenshots/acceptance.jpg)
+
+#### Preview
+
+Inspect a temporary environment for human verification of an eligible successful
+implementation. In the local runtime, preview uses isolated reviewed source,
+health checks, a loopback URL, a lifetime limit and cleanup. Opening a preview does
+not verify criteria or accept the task. The public showcase cannot start Docker;
+its screen demonstrates the controls and retained preview information.
+
+![Preview explains the isolated verification environment and showcase restrictions](docs/screenshots/engineering-preview.jpg)
+
+#### History
+
+Inspect prior runs, operation timelines, repair attempts, failures and retained
+feedback. Historical inspection remains read-only and uses the selected run's own
+artifacts and decisions. Return to the current run to perform its available actions.
+
+![History shows a prior failed run with an explicit inspection-only banner](docs/screenshots/engineering-history.jpg)
+
+</details>
+
+#### Human review and delivery
+
+Use **Request changes** to record feedback and create a fresh run through the
+existing workflow, or **Accept result** after reviewing the evidence. Acceptance
+marks the EngineeringTask Done and stops any active preview for that run. Export,
+local application and draft GitHub PR publication remain separate explicit actions;
+GitHub delivery also requires the appropriate repository configuration and credentials.
+
+![Human acceptance requires acknowledgment of unresolved evidence and explains that delivery is separate](docs/screenshots/human-review.jpg)
+
+### Models
+
+Connect NVIDIA NIM, Ollama, OpenAI-compatible, Anthropic, Gemini or a custom service
+using a supported protocol. In the local app, add a provider, load or enter a model
+ID, test it, and apply primary and optional fallback routing. Saved API keys stay
+encrypted on the backend. Environment-based `ASE_*` configuration remains supported.
+
+**Models is read-only in the public showcase:** provider edits, API-key storage, connection
+tests and routing changes are disabled. A visible notice explains how to use these
+controls in the local application. See [provider settings](docs/provider-settings.md)
+and [fallback policy](docs/model-gateway.md) for configuration details.
+
+![Models explains its read-only showcase state above provider connections and routing](docs/screenshots/models.jpg)
+
+<details>
+<summary>See primary and fallback model routing</summary>
+
+Primary and fallback selections are separate. Fallback is used only for eligible
+connection, timeout, rate-limit and availability failures; invalid results and
+rejected reviews do not switch providers.
+
+![Model routing shows separate primary and fallback providers and model IDs](docs/screenshots/models-routing.jpg)
+
+</details>
+
+For a button-by-button walkthrough, use the [complete user guide](docs/user-guide.md).
+The interface also includes Ctrl/Cmd+K command search, retained execution events,
+keyboard-accessible tabs and dialogs, and reduced-motion support. See the
+[design system](docs/design-system.md) and [capture notes](docs/screenshots/README.md).
+
+## Architecture and human control
+
+React/TypeScript → FastAPI/Pydantic → SQLAlchemy → durable LangGraph workers
+→ model gateway → isolated source → tests/review → human decision.
+SQLite is the default; PostgreSQL is optional. Independent workers perform
+analysis, coding, testing and review; a separate worker owns previews.
+See [architecture](docs/architecture.md) and the [runbook](docs/platform.md).
+
+Agents edit an isolated snapshot. Original source changes only through an explicit
+local-apply action. Delivery is separate from acceptance, and CodeOps does not
+automatically merge or deploy your application. Missing evidence stays visible;
+tests and model review are evidence, not guarantees of correctness.
+
+Preview supports one Python/Node service in Docker, with filtered source copied
+to its own volume. It does not mount the host repository or decide acceptance.
+External-service and multi-container applications are outside v1.
 See [preview profiles and images](docs/local-previews.md).
-
-## Interface
-
-![Compact engineering Board](docs/screenshots/board.jpg)
-
-Explore [Planning](docs/screenshots/planning.jpg),
-[plan approval](docs/screenshots/engineering-plan.jpg),
-[test reports](docs/screenshots/engineering-tests.jpg),
-[AI review](docs/screenshots/engineering-review.jpg),
-[acceptance evidence](docs/screenshots/acceptance.jpg),
-[Teams](docs/screenshots/teams.jpg) and [Models](docs/screenshots/models.jpg).
-These are actual captures of the redesigned application using labeled sample
-records, not real model execution results. See [capture details](docs/screenshots/README.md).
-
-The interface includes Ctrl/Cmd+K command search, a retained execution event stack,
-keyboard-accessible tabs/dialogs, and reduced-motion support.
-See the [design system](docs/design-system.md).
 
 ## Quick start (Windows)
 
