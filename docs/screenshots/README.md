@@ -1,12 +1,10 @@
 # Interface captures
 
-These captures document the earlier graphite presentation. The subsequent
-November 1 studio-workspace redesign uses light surfaces and navy navigation.
-Updated captures are pending browser verification; these images are retained as
-historical evidence and should not be treated as the latest visual appearance.
+These captures show the reference-led charcoal workbench revision from November 1,
+2026, including the compact brand, split Planning desk and Engineering stage strip.
 
 These JPEGs are actual browser captures of CodeOps, using the deterministic public
-showcase adapter. The visible SHOWCASE banner identifies illustrative records.
+showcase adapter. The visible Showcase banner identifies illustrative records.
 No screenshot claims that a model, test runner or Docker environment ran here.
 
 | Capture | Surface |
@@ -24,8 +22,8 @@ No screenshot claims that a model, test runner or Docker environment ran here.
 | [Models](models.jpg) | Visible primary/fallback route; no credentials |
 | [Live showcase](showcase-live.jpg) | Verified public Cloudflare deployment |
 
-Captured during the November 1, 2026 presentation pass. Browser QA also covers
-1366×768, 1440×900, 1920×1080 and 2560×1440. Capture dimensions are preserved in
+Captured during the November 1, 2026 reference-led presentation pass at 1440×900.
+Additional responsive checks cover phone and desktop breakpoints. Capture dimensions are preserved in
 each image; no concept art or composited product state is used.
 
 To refresh captures, run `pnpm dev:showcase` in `frontend`, navigate the real

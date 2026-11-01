@@ -13,9 +13,6 @@ PostgreSQL, Docker runners and Docker previews are supported.
 
 ![CodeOps engineering workspace showing a retained split diff](docs/screenshots/engineering-diff.jpg)
 
-The captures below show the earlier graphite presentation. The live showcase now
-uses the updated light workspace with navy navigation; refreshed captures are pending.
-
 *Actual interface capture with explicitly illustrative showcase data. The public
 showcase runs the same frontend without model calls, backend access or delivery.*
 

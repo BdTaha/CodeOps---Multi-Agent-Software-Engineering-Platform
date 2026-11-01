@@ -1,5 +1,36 @@
 # CodeOps verification
 
+## Reference-led dark workbench — 2026-11-01
+
+The user rejected the light/navy presentation and supplied a dark desktop-editor
+reference. This revision restores dark mode and changes the working composition:
+compact inline branding, flat repositories with a project context pane, separate
+Planning input/draft panes, a task-context/artifact split, and a bottom execution
+stage navigator. The prior visual stylesheet was replaced rather than retaining
+the rejected light presentation as another layer.
+
+- Frontend: **50 passed, 0 failed**. Both normal and showcase production builds
+  passed after final CSS adjustments. TypeScript unused-code checks passed.
+- Browser approval was explicitly renewed by the user. Visual review completed on
+  the local showcase and the published Cloudflare version. The earlier browser
+  approval failure recorded below no longer blocks this revision.
+- Browser coverage: Projects, Planning, Board, Teams, Models, all nine Engineering
+  tabs, command dialog/Escape, coding-plan approval controls, acceptance disabled
+  until acknowledgment, and historical runs without acceptance actions.
+- Responsive inspection: 390×844, 1366×768, 1440×900 and 1920×1080. No document
+  horizontal overflow at the inspected phone/laptop/wide layouts; code, board
+  lanes and the execution strip have bounded internal scrolling where necessary.
+- Visual QA corrected stretched Teams skill chips and Board column sizing.
+  Twelve screenshots were refreshed from actual loaded showcase screens.
+- The published task/diff bookmark rendered the new layout and split diff;
+  its browser warning/error log was empty. Deployment version:
+  `216a74f9-260a-4f33-b99c-7c2f09c19b43` at
+  [the TahaBd showcase](https://codeops-showcase.tahabd.workers.dev).
+- No backend, transport, fixtures, domain state, model routing, approval, acceptance
+  or delivery implementation changed. The execution strip consumes the existing
+  selected-run stages and tab-navigation handler. The backend suite was not rerun
+  for this presentation-only revision; previous results remain recorded below.
+
 ## Studio-workspace visual redesign — 2026-11-01 follow-up
 
 The public showcase now uses the light canvas, navy sidebar and cobalt controls

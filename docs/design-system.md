@@ -1,44 +1,50 @@
 # Interface design
 
-CodeOps uses a pale blue work canvas, white document surfaces, deep navy navigation
-and cobalt actions. Success, attention, failure and informational states have separate tokens.
-`frontend/src/design/tokens.css` owns the palette, type stacks, spacing scale,
-radii, control sizes, focus ring and motion duration. Domain layout styles consume
-these tokens; `design/surfaces.css` owns shared interaction treatments and
-`design/workspace.css` owns the current workspace presentation and responsive layout.
+CodeOps uses the user's dark desktop-editor reference: neutral charcoal surfaces,
+compact chrome, flat lists, thin dividers and a large artifact area. Color is
+reserved for evidence, statuses and source changes. There is no large brand tile,
+promotional hero, decorative glow or card-based landing screen.
 
-Ordinary interface text uses Segoe UI Variable with system fallbacks. Display
-headings use Bahnschrift with Aptos Display and system fallbacks; no font service
-or network dependency is needed. Task keys, paths, model IDs, commands, logs and
-source use the monospace stack. Buttons remain compact;
-Engineering retains its task browser, workflow rail, nine tabs and file navigator.
-Changes to status or evidence presentation do not create a second lifecycle model.
+`frontend/src/design/tokens.css` owns colors, type stacks, spacing and controls.
+`design/surfaces.css` owns shared interaction treatments;
+`design/workspace.css` owns the current desktop shell, pane geometry and responsive
+presentation. Existing domain styles retain their structural and semantic roles.
 
 ## Workspace direction
 
-The November 1 follow-up replaces the earlier graphite treatment with a visibly
-different studio workspace. The palette is canvas `#edf1f7`, paper `#ffffff`,
-navigation `#142644`, ink `#172848`, cobalt `#2958d9`, and green `#17714f`.
-Content stays left aligned; display type identifies the page while compact sans
-text carries controls and technical records.
+The palette is background `#1c1c1c`, navigation `#222222`, raised surface `#252525`,
+divider `#343434`, text `#e4e4e4` and secondary text `#b4b4b4`. Primary buttons use
+light neutral fill. Muted green, amber and red communicate actual recorded states;
+they are not used as branding. Typography uses Segoe UI Variable with system
+fallbacks, including headings. Source, commands and paths retain monospace text.
+No external fonts, animation framework or UI kit are required.
 
-Projects opens with repository context and a three-stage explanation of the real
-plan/build/review flow, followed by repositories and working navigation shortcuts.
-Planning uses a contained composer and separate editable draft sections. Board
-lanes use restrained status tints, with white task surfaces. Teams uses identity
-and capacity sections. Engineering uses a task header, tab strip, file navigator
-and a paper evidence area; code keeps line numbers and distinct addition/deletion
-backgrounds. Models uses clearly bounded provider and routing sections.
+The desktop shell has a modest inset and narrow frame. The sidebar uses a small
+inline wordmark, compact navigation and registered-project links. User choices to
+collapse the sidebar remain saved. Projects uses a repository list beside current
+project context. Planning places the goal and saved-plan selection in a separate
+scrolling pane beside the editable draft. Board uses neutral lanes and compact
+tasks. Teams uses flat identity/capacity rows. Models retains provider/routing
+sections with quiet borders.
 
-The emphasis is navigation versus working content, rather than decorative
-animation. Shared state, transport, model execution, approval and delivery logic
-remain unchanged. Sidebar preference is retained; a fresh desktop session starts
-expanded and a fresh narrow-screen session starts collapsed. Both controls remain
-available. Reduced-motion and keyboard-focus treatments are retained.
+Engineering places the task context, file list and retained attempts beside the
+artifact viewer. A bottom execution strip uses the existing stage model and
+navigation handlers, including the selected historical run's actual evidence.
+This strip is a process navigator, not a fabricated time or progress chart.
+The nine tabs, historical mode, coding-plan approval, acceptance acknowledgment,
+model execution and delivery rules are retained. On narrow viewports the context
+pane stacks above the artifact; code and the stage strip scroll within their own
+regions, and both sidebar-collapse controls remain available.
 
-`Spotlight` updates CSS custom properties directly on pointer movement. Only
-project and provider surfaces use it. No React state updates occur on pointer move.
-Reduced-motion preferences remove the effect and disable motion throughout the UI.
+The earlier light/navy direction was rejected by the user and replaced. The supplied
+dark editor screenshot controls this revision's typography, surface treatment,
+density and pane composition. Its film-specific controls and content were not
+copied into CodeOps. Current captures are in `docs/screenshots`.
+
+Pointer illumination is disabled by the current visual stylesheet. The reusable
+`Spotlight` wrapper remains available, without React state updates on pointer move.
+Reduced-motion preferences still disable animation and transitions. Visible focus
+rings, native inputs and existing dialog focus containment are retained.
 
 The command palette uses the native modal dialog's focus containment, Escape
 handling and focus restoration, with a keyboard-controlled result list. Ctrl+K or
