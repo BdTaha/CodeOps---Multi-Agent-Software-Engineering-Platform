@@ -3,7 +3,7 @@
 CodeOps turns product goals into engineering tasks and isolated AI coding runs,
 with human approval, inspectable evidence and explicit delivery.
 
-[Live interactive showcase](https://codeops-showcase.boudane-taha01.workers.dev) ·
+[Live interactive showcase](https://codeops-showcase.tahabd.workers.dev) ·
 [Run the showcase locally](docs/showcase.md) ·
 [Architecture](docs/architecture.md) · [User guide](docs/user-guide.md)
 

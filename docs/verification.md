@@ -2,7 +2,7 @@
 
 ## Presentation and isolated showcase — 2026-11-01
 
-Status: deployed to [Cloudflare Workers Static Assets](https://codeops-showcase.boudane-taha01.workers.dev) and manually verified on November 1, 2026.
+Status: deployed to [Cloudflare Workers Static Assets](https://codeops-showcase.tahabd.workers.dev) and manually verified on November 1, 2026.
 
 - Baseline backend: **602 passed, 150 skipped**, 222.19 seconds. Final backend:
   **602 passed, 150 skipped**, 227.63 seconds. Skips are the existing explicit
@@ -35,12 +35,15 @@ Status: deployed to [Cloudflare Workers Static Assets](https://codeops-showcase.
   no matching secret patterns or personal absolute paths. The normal bundle
   contained no showcase fixtures. These checks are not an exhaustive secret audit.
 - Public deployment succeeded after the operator authorized Workers access.
-  Version `a1b0a6e8-43dc-4189-a900-2ef1e6ed6f67` serves the frontend from
-  `https://codeops-showcase.boudane-taha01.workers.dev`. Every major screen and
+  Version `8f0390ad-532d-4d66-8a6e-5e14f62b83b5` serves the frontend from
+  `https://codeops-showcase.tahabd.workers.dev`. Every major screen and
   all nine Engineering tabs were checked on the live site. Current and historical
   bookmarks survived refresh; a fresh live browser tab had no warning/error logs.
   Root and unmatched deep navigation returned HTTP 200 with the same shell;
   deployed CSP and nosniff headers were verified.
+- The account hostname was changed to the requested TahaBd branding. The new
+  HTTPS address and a refreshed Engineering task bookmark were verified in the
+  browser with no warning/error console entries. Application assets were unchanged.
 - [GitHub CI](https://github.com/BdTaha/CodeOps---Multi-Agent-Software-Engineering-Platform/actions/runs/41260761167)
   passed both backend and frontend jobs for implementation commit `901ce52`.
   The optional main-branch deployment job was skipped because its account variable

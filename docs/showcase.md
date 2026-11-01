@@ -1,6 +1,6 @@
 # Public showcase
 
-[Open the live showcase](https://codeops-showcase.boudane-taha01.workers.dev).
+[Open the live showcase](https://codeops-showcase.tahabd.workers.dev).
 Deployed to Cloudflare Workers Static Assets and verified on November 1, 2026.
 The deployed application uses the same frontend as the full local runtime.
 
