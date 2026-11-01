@@ -1,8 +1,9 @@
 import type { FileList, Project, Snapshot } from './types';
+import { apiFetch } from './transport';
 export interface Job { id: string; revision?:number; created?:number; engineering_origin?:{engineering_task_id:string}|null; artifacts_loaded?:boolean; phase: string; node: string | null; approval: string | null; snapshot: Snapshot; cancel: number; options: { test_backend: string; framework: string; max_attempts: number }; delivery: Record<string, unknown> }
 export interface Delivery { receipt: string; files: string[]; diff: string; github_available: boolean; github?: { slug: string; base: string }; delivery: Record<string, unknown> }
 async function request<T>(path: string, body?: unknown): Promise<T> {
-  const response = await fetch(path, body === undefined ? { cache: 'no-store' } : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const response = await apiFetch(path, body === undefined ? { cache: 'no-store' } : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   if (!response.ok) { const error = await response.json().catch(() => ({})); throw new Error(typeof error.detail === 'string' ? error.detail : `Request failed (${response.status}).`); }
   return response.json();
 }

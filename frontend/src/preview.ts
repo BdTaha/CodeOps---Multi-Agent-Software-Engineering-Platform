@@ -5,7 +5,7 @@ export const previewProject: Project = { id: 'preview', name: 'ecommerce-api', p
 export const previewFiles = ['README.md', 'pyproject.toml', 'src/main.py', 'src/auth/routes.py', 'src/auth/security.py', 'src/auth/schemas.py', 'src/users/service.py', 'src/products/routes.py', 'tests/test_auth.py', 'tests/test_products.py'];
 export const previewDiff = `--- a/src/auth/routes.py
 +++ b/src/auth/routes.py
-@@ -12,4 +12,9 @@
+@@ -12,4 +12,8 @@
  @router.post("/login")
  def login(credentials: LoginRequest):
      user = authenticate(credentials)

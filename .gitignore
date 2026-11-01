@@ -13,6 +13,13 @@ node_modules/
 .pnpm-store/
 *.tsbuildinfo
 frontend/.test-dist/
+frontend/dist-showcase/
+.wrangler/
+.dev.vars*
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
 .env
 .env.*
 !.env.example

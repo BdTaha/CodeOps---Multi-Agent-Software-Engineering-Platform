@@ -1,0 +1,10 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "codeops-showcase",
+  "compatibility_date": "2026-10-30",
+  "workers_dev": true,
+  "assets": {
+    "directory": "./dist-showcase",
+    "not_found_handling": "single-page-application",
+  },
+}

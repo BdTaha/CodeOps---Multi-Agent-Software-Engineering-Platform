@@ -1,10 +1,11 @@
 import type { EngineeringStatus, EngineeringTask, PlanRecord, ProductPlanDraft } from './productTypes';
+import { apiFetch } from './transport';
 
 export class AssignmentWarning extends Error {
   constructor(message: string, public warnings: string[]) { super(message); }
 }
 export async function request<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
-  const response = await fetch(path, { method, cache: 'no-store',
+  const response = await apiFetch(path, { method, cache: 'no-store',
     ...(body === undefined ? {} : { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }) });
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
