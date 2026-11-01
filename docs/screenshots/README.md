@@ -1,5 +1,10 @@
 # Interface captures
 
+These captures document the earlier graphite presentation. The subsequent
+November 1 studio-workspace redesign uses light surfaces and navy navigation.
+Updated captures are pending browser verification; these images are retained as
+historical evidence and should not be treated as the latest visual appearance.
+
 These JPEGs are actual browser captures of CodeOps, using the deterministic public
 showcase adapter. The visible SHOWCASE banner identifies illustrative records.
 No screenshot claims that a model, test runner or Docker environment ran here.

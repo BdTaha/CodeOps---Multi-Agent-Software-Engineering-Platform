@@ -17,7 +17,7 @@ import DialogFocusManager from './design/DialogFocusManager';
 const navigation = [{ id: 'projects' as View, label: 'Projects', icon: Boxes }, { id: 'planning' as View, label: 'Planning', icon: LayoutList }, { id: 'board' as View, label: 'Board', icon: Kanban }, { id: 'teams' as View, label: 'Teams', icon: Users }, { id: 'workspace' as View, label: 'Workspace', icon: Workflow }, { id: 'models' as View, label: 'Models', icon: Cpu }];
 export default function App() {
   const lab = useWorkbench();
-  const [sidebarCollapsed,setSidebarCollapsed]=useState(()=>(localStorage.getItem('codeops-global-sidebar')??localStorage.getItem('codeops-engineering-sidebar'))!=='expanded');
+  const [sidebarCollapsed,setSidebarCollapsed]=useState(()=>{const saved=localStorage.getItem('codeops-global-sidebar')??localStorage.getItem('codeops-engineering-sidebar');return saved?saved!=='expanded':window.matchMedia('(max-width: 900px)').matches;});
   const [engineeringContext,setEngineeringContext]=useState('Engineering');
   const engineering=['workspace','review','metrics','results'].includes(lab.view);
   const rail=sidebarCollapsed;

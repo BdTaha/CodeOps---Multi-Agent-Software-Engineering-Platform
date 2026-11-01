@@ -1,5 +1,32 @@
 # CodeOps verification
 
+## Studio-workspace visual redesign — 2026-11-01 follow-up
+
+The public showcase now uses the light canvas, navy sidebar and cobalt controls
+documented in [the design system](design-system.md), replacing the earlier graphite
+presentation. The Projects composition, shared navigation, Planning composer and
+drafts, Board lanes, Teams, Engineering evidence and Models surfaces were restyled.
+Existing saved sidebar choices remain valid; fresh desktop sessions start expanded.
+
+- Frontend baseline and final: **50 passed, 0 failed** on each run.
+- Both normal `/ui/` and root showcase production builds passed after the final
+  source changes. `tsc --noEmit --noUnusedLocals --noUnusedParameters` passed.
+- Wrangler asset dry run passed (the sandbox denied its optional log-file write);
+  the authorized deployment outside that restriction completed successfully.
+- Cloudflare version: `d9c33f19-171b-4e61-bab8-1eae8d347aa6`.
+- Deployed root, current CSS asset and deep-link fallback returned HTTPS 200.
+  The delivered stylesheet contains the light color scheme, navy navigation
+  variables and new Projects composition. The CSP header remains present.
+- Backend, workflow, transport, fixtures, evidence and delivery implementation were
+  unchanged. The backend suite was not rerun for this presentation-only follow-up;
+  its previous results are recorded below.
+- **Browser visual verification is incomplete for this follow-up.** The first local
+  preview could not connect through sandbox socket restrictions. A preview outside
+  that restriction was started, but automatic browser approval then failed due to
+  a usage-limit gate; a retry was also rejected. No alternative browser automation
+  or gate bypass was used. Current screenshot files remain labeled as the previous
+  presentation. Earlier browser coverage below applies to that earlier version.
+
 ## Presentation and isolated showcase — 2026-11-01
 
 Status: deployed to [Cloudflare Workers Static Assets](https://codeops-showcase.tahabd.workers.dev) and manually verified on November 1, 2026.

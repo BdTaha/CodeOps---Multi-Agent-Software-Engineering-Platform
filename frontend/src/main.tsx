@@ -9,6 +9,7 @@ import './product.css';
 import './engineering/engineering.css';
 import './engineering/teams-resources.css';
 import './design/surfaces.css';
+import './design/workspace.css';
 
 declare const __CODEOPS_SHOWCASE__: boolean;
 if (__CODEOPS_SHOWCASE__) {
