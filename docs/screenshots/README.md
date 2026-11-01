@@ -17,6 +17,7 @@ No screenshot claims that a model, test runner or Docker environment ran here.
 | [Acceptance](acceptance.jpg) | Verified, supported and unverified evidence |
 | [History](engineering-history.jpg) | Read-only historical inspection |
 | [Models](models.jpg) | Visible primary/fallback route; no credentials |
+| [Live showcase](showcase-live.jpg) | Verified public Cloudflare deployment |
 
 Captured during the November 1, 2026 presentation pass. Browser QA also covers
 1366×768, 1440×900, 1920×1080 and 2560×1440. Capture dimensions are preserved in

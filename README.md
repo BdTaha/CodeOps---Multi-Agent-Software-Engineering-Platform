@@ -3,7 +3,8 @@
 CodeOps turns product goals into engineering tasks and isolated AI coding runs,
 with human approval, inspectable evidence and explicit delivery.
 
-[Interactive showcase setup](docs/showcase.md) ·
+[Live interactive showcase](https://codeops-showcase.boudane-taha01.workers.dev) ·
+[Run the showcase locally](docs/showcase.md) ·
 [Architecture](docs/architecture.md) · [User guide](docs/user-guide.md)
 
 React/TypeScript → FastAPI → SQLAlchemy → durable LangGraph workers → model gateway

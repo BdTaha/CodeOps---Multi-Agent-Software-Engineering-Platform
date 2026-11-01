@@ -1,5 +1,9 @@
 # Public showcase
 
+[Open the live showcase](https://codeops-showcase.boudane-taha01.workers.dev).
+Deployed to Cloudflare Workers Static Assets and verified on November 1, 2026.
+The deployed application uses the same frontend as the full local runtime.
+
 The showcase builds the same React application as the local runtime. Its fixtures
 illustrate product planning, organization, coding-plan approval, retained changes,
 test reports, AI review, acceptance evidence and historical runs. They are not
@@ -62,8 +66,8 @@ pnpm deploy:showcase
 
 Complete Cloudflare authorization in your browser. Never paste a token into source
 or create a credential file in this repository. A Pages-only login needs refreshing
-to authorize Workers deployment. Record the actual URL from Wrangler after a
-successful deployment, then add it to the README and repository homepage.
+to authorize Workers deployment. The current deployment URL is linked above and
+in the repository README.
 
 For CI, `.github/workflows/showcase.yml` deploys `main` when repository variable
 `CLOUDFLARE_ACCOUNT_ID` and secret `CLOUDFLARE_API_TOKEN` are configured. The token
@@ -72,6 +76,7 @@ whatever additional permissions Cloudflare requires for that account. Without
 the account variable the deployment job is skipped. Local OAuth remains a valid
 deployment route without CI secrets.
 
-After deployment, verify all navigation sections, refresh a task/tab/history
-bookmark, inspect console errors and confirm response security headers. The live
-URL must be reported as pending until these deployment checks actually succeed.
+After each deployment, verify all navigation sections, refresh a task/tab/history
+bookmark, inspect console errors and confirm response security headers. The
+November 1 deployment passed these checks, including all nine Engineering tabs
+and retained historical bookmarks, with no warning/error console entries.

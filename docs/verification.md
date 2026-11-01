@@ -2,8 +2,7 @@
 
 ## Presentation and isolated showcase — 2026-11-01
 
-Status: implementation and local deployment validation complete; public Workers
-deployment awaits Cloudflare authorization with Workers permissions.
+Status: deployed to [Cloudflare Workers Static Assets](https://codeops-showcase.boudane-taha01.workers.dev) and manually verified on November 1, 2026.
 
 - Baseline backend: **602 passed, 150 skipped**, 222.19 seconds. Final backend:
   **602 passed, 150 skipped**, 227.63 seconds. Skips are the existing explicit
@@ -35,10 +34,18 @@ deployment awaits Cloudflare authorization with Workers permissions.
   patterns; no matches were found. The source and generated showcase bundle had
   no matching secret patterns or personal absolute paths. The normal bundle
   contained no showcase fixtures. These checks are not an exhaustive secret audit.
-- Cloudflare OAuth is present but lacks Workers deployment permissions. The deployment attempt was denied by Cloudflare with "No access to the specified resource." No live
-  URL, remote deployment verification, GitHub homepage change or CI-secret setup
-  is claimed. The optional main-branch deployment workflow is prepared and skips
-  deployment until its account variable and token secret are configured.
+- Public deployment succeeded after the operator authorized Workers access.
+  Version `a1b0a6e8-43dc-4189-a900-2ef1e6ed6f67` serves the frontend from
+  `https://codeops-showcase.boudane-taha01.workers.dev`. Every major screen and
+  all nine Engineering tabs were checked on the live site. Current and historical
+  bookmarks survived refresh; a fresh live browser tab had no warning/error logs.
+  Root and unmatched deep navigation returned HTTP 200 with the same shell;
+  deployed CSP and nosniff headers were verified.
+- [GitHub CI](https://github.com/BdTaha/CodeOps---Multi-Agent-Software-Engineering-Platform/actions/runs/41260761167)
+  passed both backend and frontend jobs for implementation commit `901ce52`.
+  The optional main-branch deployment job was skipped because its account variable
+  is not configured. OAuth deployment works; unattended CI deployment still needs
+  the documented account variable and token secret. No credentials are committed.
 
 ## Nemotron 3.5 Super exact thinking profile — 2026-10-20
 
