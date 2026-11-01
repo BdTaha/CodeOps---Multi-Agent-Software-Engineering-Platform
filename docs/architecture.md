@@ -77,7 +77,11 @@ accept a result; delivery remains a separate action after human acceptance.
 | core | Configuration and logging |
 
 v1 serves one trusted local operator. Automatic dispatch, auth/RBAC,
-multi-container previews and cloud deployment belong to the roadmap.
+and multi-container previews are outside its current scope. The public Cloudflare
+showcase hosts the same frontend with deterministic, local sample data. It does
+not host the backend or run models, repositories, tests, containers or delivery.
+The normal entry point defaults to the existing HTTP boundary; the showcase entry
+installs a closed local adapter before React mounts. See [showcase](showcase.md).
 See [planning](product-planning.md), [bridge](task-execution-bridge.md),
 [previews](local-previews.md), [models](provider-settings.md) and
 [demo](v1-demo.md). Phase documents retain history, not current scope.

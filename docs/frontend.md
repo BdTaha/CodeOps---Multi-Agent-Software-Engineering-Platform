@@ -147,10 +147,7 @@ highlighting operates per line, so multiline token context outside a retained hu
 can be incomplete; full source highlighting retains multiline token boundaries. Snapshot
 source availability depends on retained workspace files. Standalone runs have no
 EngineeringTask ownership or managed preview. Compact HTTP projections reduce
-payloads, but database hydration is unchanged. Real current production tasks did not
-have linked historical runs. Lifecycle interaction, contextual assignment, and historical
-inspection were additionally verified using isolated UI fixtures of the real workspace
-with test-only API responses; production tasks were not changed.
+payloads, but database hydration is unchanged. Lifecycle, contextual assignment and historical inspection are covered by isolated UI fixtures; the public showcase also retains a historical sample run. See [showcase](showcase.md) for the separate local adapter and [design tokens](design-system.md) for presentation conventions.
 
 ## Build, run, and verify
 

@@ -1,18 +1,28 @@
-# Actual product screenshots
+# Interface captures
 
-Capture from the running app after [the manual demo](../v1-demo.md), consistently
-at desktop size (e.g. 1536×960), with no credentials visible. Use actual retained
-evidence; do not present a frontend fixture as a completed execution.
+These JPEGs are actual browser captures of CodeOps, using the deterministic public
+showcase adapter. The visible SHOWCASE banner identifies illustrative records.
+No screenshot claims that a model, test runner or Docker environment ran here.
 
-Suggested filenames for README image links:
+| Capture | Surface |
+| --- | --- |
+| [Projects](projects.jpg) | Repository identity, stack and preview configuration |
+| [Planning](planning.jpg) | Goal composer and repository-grounding presentation |
+| [Board](board.jpg) | Approved tasks, status, ownership and dependencies |
+| [Teams](teams.jpg) | Workspace identities, queues and runtime reservations |
+| [Plan approval](engineering-plan.jpg) | Separate human coding-plan gate |
+| [Diff](engineering-diff.jpg) | Highlighted split diff and retained line numbers |
+| [Tests](engineering-tests.jpg) | Sample command, duration and bounded test output |
+| [Review](engineering-review.jpg) | Findings with AI/human decision distinction |
+| [Acceptance](acceptance.jpg) | Verified, supported and unverified evidence |
+| [History](engineering-history.jpg) | Read-only historical inspection |
+| [Models](models.jpg) | Visible primary/fallback route; no credentials |
 
-* draft-planning.png — Repository-grounded basis, T refs, saved edit and approval.
-* board.png — Approved CO tasks, including older approved work.
-* teams.png — Backend Squad/Agent, queue and runtime separation.
-* engineering-diff.png — Actual reviewed syntax-highlighted diff.
-* acceptance.png — Actual criteria/evidence and honest unresolved state.
-* preview.png — Ready loopback registration form.
-* models.png — Model route and availability, no API keys.
+Captured during the November 1, 2026 presentation pass. Browser QA also covers
+1366×768, 1440×900, 1920×1080 and 2560×1440. Capture dimensions are preserved in
+each image; no concept art or composited product state is used.
 
-Screenshots are optional tracked artifacts. Refresh them when UI changes;
-written demo/verification records do not depend on fabricated images.
+To refresh captures, run `pnpm dev:showcase` in `frontend`, navigate the real
+application, wait for data and active-tab state to settle, and capture the viewport.
+Do not use screenshots from a connected private runtime without checking the
+visible paths, repository identity and retained source for private information.

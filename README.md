@@ -1,7 +1,19 @@
 # CodeOps
 
-CodeOps is an AI-assisted engineering management and multi-agent delivery platform
-that turns product goals into reviewable engineering work.
+CodeOps turns product goals into engineering tasks and isolated AI coding runs,
+with human approval, inspectable evidence and explicit delivery.
+
+[Interactive showcase setup](docs/showcase.md) ·
+[Architecture](docs/architecture.md) · [User guide](docs/user-guide.md)
+
+React/TypeScript → FastAPI → SQLAlchemy → durable LangGraph workers → model gateway
+→ isolated source → tests/review → human decision. SQLite is the default;
+PostgreSQL, Docker runners and Docker previews are supported.
+
+![CodeOps engineering workspace showing a retained split diff](docs/screenshots/engineering-diff.jpg)
+
+*Actual interface capture with explicitly illustrative showcase data. The public
+showcase runs the same frontend without model calls, backend access or delivery.*
 
 **New to CodeOps?** Start with the [complete beginner's user guide](docs/user-guide.md)
 for startup instructions, a first-task walkthrough, every navigation section,
@@ -71,11 +83,22 @@ source to its own volume, never mounts the host repository and never decides
 acceptance. External-service/multi-container apps are outside v1.
 See [preview profiles and images](docs/local-previews.md).
 
-## Screenshots
+## Interface
 
-Capture actual Draft Planning, Board, Teams, Engineering Diff, Acceptance, Preview
-and Models screens using [this checklist](docs/screenshots/README.md). No
-illustrative image is presented as a verified product state.
+![Compact engineering Board](docs/screenshots/board.jpg)
+
+Explore [Planning](docs/screenshots/planning.jpg),
+[plan approval](docs/screenshots/engineering-plan.jpg),
+[test reports](docs/screenshots/engineering-tests.jpg),
+[AI review](docs/screenshots/engineering-review.jpg),
+[acceptance evidence](docs/screenshots/acceptance.jpg),
+[Teams](docs/screenshots/teams.jpg) and [Models](docs/screenshots/models.jpg).
+These are actual captures of the redesigned application using labeled sample
+records, not real model execution results. See [capture details](docs/screenshots/README.md).
+
+The interface includes Ctrl/Cmd+K command search, a retained execution event stack,
+keyboard-accessible tabs/dialogs, and reduced-motion support.
+See the [design system](docs/design-system.md).
 
 ## Quick start (Windows)
 
@@ -124,6 +147,8 @@ Set-Location frontend
 pnpm install --frozen-lockfile
 pnpm test
 pnpm build
+pnpm build:showcase
+pnpm check:cloudflare
 ```
 
 [GitHub Actions](.github/workflows/ci.yml) runs backend/frontend checks on push
@@ -135,7 +160,7 @@ Never point integrations at your working database; tests can retain rows.
 Windows ownership differences may need a new `--basetemp=.workspaces/test-run`.
 See [actual verification](docs/verification.md).
 
-## Current limitations and roadmap
+## Current limitations
 
 v1 is feature-frozen for one trusted local operator, without multi-user accounts
 or tenant isolation. Context/snapshots are bounded UTF-8 samples; filtering cannot
@@ -146,7 +171,7 @@ Request Changes starts from registered source with prior feedback/history; it
 does not automatically apply old output. GitHub delivery needs import, credentials
 and an explicit action. No automatic acceptance, merge or deployment.
 
-Roadmap only: dispatch/scheduling, accounts/RBAC, analytics/billing, multi-container
-or cloud previews, per-agent routing, model benchmarks, marketplace and IDE/chat
-integration. Historical phase documents retain milestone history; current
-architecture/runbooks describe v1.
+The public showcase is a frontend demonstration; the full local runtime still
+requires its API, SQL state, independent workers and configured providers.
+Historical phase documents retain milestone history; current architecture and
+runbooks describe v1.

@@ -1,4 +1,44 @@
-# CodeOps v1 verification — 2026-10-08
+# CodeOps verification
+
+## Presentation and isolated showcase — 2026-11-01
+
+Status: implementation and local deployment validation complete; public Workers
+deployment awaits Cloudflare authorization with Workers permissions.
+
+- Baseline backend: **602 passed, 150 skipped**, 222.19 seconds. Final backend:
+  **602 passed, 150 skipped**, 227.63 seconds. Skips are the existing explicit
+  PostgreSQL, Docker, preview and Node integration opt-ins. Windows sandbox
+  asyncio socket initialization stalled; the successful runs used the existing
+  repository virtual environment outside that restriction, with fresh test temp
+  directories. No application database or registered source was reset.
+- Baseline frontend: **46 passed** and normal build passed. Final frontend:
+  **50 passed**; frozen installation, normal `/ui/` build, separate root showcase
+  build, TypeScript unused-code checks and Wrangler dry run passed.
+- Added boundary tests exercise blocked network/destructive actions, draft-save
+  revisions and explicit approval, retained approved-plan task separation,
+  historical evidence isolation, per-visitor reset and unchanged HTTP forwarding.
+- Backend source, workflows, persistence, API routes, tests, containers and service
+  scripts have no changes in this phase. The three frontend API clients forward
+  through a default same-origin transport; normal request semantics are retained.
+- Browser checks covered Projects, Planning, Board, Teams, all nine Engineering
+  tabs, model routing, preview configuration, command-search keyboard selection,
+  draft save/approval, assignment without execution, explicit sample acceptance
+  and read-only history. Actual captures are in `docs/screenshots`.
+- Engineering layout was inspected at 1366×768, 1440×900, 1920×1080 and 2560×1440.
+  No document horizontal overflow was found. Reduced-motion CSS and the spotlight
+  preference guard were inspected; OS preference switching was not automated.
+- The built showcase was also served with Wrangler's local Workers runtime.
+  Root and unmatched deep navigation returned the same shell with HTTP 200;
+  the CSP denied connections and iframes. A task/diff hash bookmark survived
+  browser reload, with no warning/error console entries in that fresh built tab.
+- Tracked files and 711 reachable historical objects were scanned for credential
+  patterns; no matches were found. The source and generated showcase bundle had
+  no matching secret patterns or personal absolute paths. The normal bundle
+  contained no showcase fixtures. These checks are not an exhaustive secret audit.
+- Cloudflare OAuth is present but lacks Workers deployment permissions. The deployment attempt was denied by Cloudflare with "No access to the specified resource." No live
+  URL, remote deployment verification, GitHub homepage change or CI-secret setup
+  is claimed. The optional main-branch deployment workflow is prepared and skips
+  deployment until its account variable and token secret are configured.
 
 ## Nemotron 3.5 Super exact thinking profile — 2026-10-20
 
